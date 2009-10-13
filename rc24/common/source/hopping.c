@@ -59,10 +59,10 @@ void randomizeHopSequence(uint32 seed)
     int perm[] ={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
     int i,n,temp;
 
-    //create a seeded psudeo random permutation of channels by swapping
+    //create a seeded pseudo random permutation of channels by swapping
 
  //   srand(seed);
- //use private rand function to avoid interrupt problem when changeing models
+ //use private rand function to avoid interrupt problem when changing models
  //quick and dirty generator from 'numerical recipes in C'
     uint32 randn=seed;
 

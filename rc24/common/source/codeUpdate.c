@@ -44,8 +44,28 @@ uint8 startCodeUpdate(uint8* inMsg, uint8* outMsg)
 	bAHI_FlashEraseSector(1);
 
 	//send ack
+
 	outMsg[0]=0x91;
-	return 1;
+	//todo store module type somewhere
+	#if (JENNIC_CHIP_FAMILY == JN514x)
+		outMsg[1]=6;
+		outMsg[2]='J';
+		outMsg[3]='N';
+		outMsg[4]='5';
+		outMsg[5]='1';
+		outMsg[6]='4';
+		outMsg[7]='8';
+	#else
+		outMsg[1]=6;
+		outMsg[2]='J';
+		outMsg[3]='N';
+		outMsg[4]='5';
+		outMsg[5]='1';
+		outMsg[6]='3';
+		outMsg[7]='9';
+	#endif
+
+	return 8;
 }
 uint8 codeUpdateChunk(uint8* inMsg, uint8* outMsg)
 {
@@ -59,7 +79,10 @@ uint8 codeUpdateChunk(uint8* inMsg, uint8* outMsg)
 		sectorSize=0x8000;
 	#endif
 	uint8 len=inMsg[1];
-
+	for(i=2;i<len+2;i++)
+	{
+		codeUpdateCrc^=inMsg[i];
+	}
 	//copy in mac address
 	if(codeUpdateLength==0)
 	{
@@ -67,10 +90,7 @@ uint8 codeUpdateChunk(uint8* inMsg, uint8* outMsg)
 	}
 	//write to flash buffer
 	bAHI_FullFlashProgram(sectorSize+codeUpdateLength,len,&inMsg[2]);
-	for(i=2;i<len+2;i++)
-	{
-		codeUpdateCrc^=inMsg[i];
-	}
+
 	codeUpdateLength+=len;
 	//send ack
 	outMsg[0]=0x93;
