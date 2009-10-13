@@ -72,7 +72,7 @@ bool queueLowPriorityData(uint8* data, uint8 len)
     }
     else
     {
-    	pcComsPrintf(" lpbFull ");
+    	//dbgPrintf(" lpbFull ");
 
     	return FALSE;
     }
@@ -93,7 +93,6 @@ uint8 appendLowPriorityData(uint8* buffer, uint8 maxlen)
     }
     sendlen=lpqLen-lpqRead;
     if(sendlen>maxlen-len)sendlen=maxlen-len;
-
     memcpy(buffer,&lowPriorityQueue[lpqRead],sendlen);
     return sendlen+len;
 
@@ -120,8 +119,6 @@ void handleLowPriorityData(uint8* buffer, uint8 len)
     uint8 rxSeqId=buffer[0];
     uint8 rxChunkId=buffer[1];
     uint8 headerLen=2;
-
- //   pcComsPrintf(" s%dc%d ",rxSeqId,rxChunkId);
 
     if(rxChunkId==0)//new message
     {

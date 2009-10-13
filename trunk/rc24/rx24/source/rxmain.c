@@ -87,8 +87,6 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len);
 
 PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast);
 
-PUBLIC void rPutC(unsigned char c);
-
 void frameStartEvent(void* buff);
 
 
@@ -104,6 +102,8 @@ void storeSettings(void);
 
 #define CONTX 0
 #define CONPC 1
+
+
 
 //PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap);
 
@@ -132,17 +132,8 @@ uint8 txLinkQuality=0;
 
 uint32 frameCounter=0;//good for almost 3 years at 50/sec
 
-unsigned char radiodebugbuf[64];
-int radiodebugidx=1;
-
-//todo make debug messages routed so they can be sent anywhere
-
-#define UARTDEBUG 0
-#define RADIODEBUG 1
-
-//int debugchannel = RADIODEBUG;
-int debugchannel = UARTDEBUG;
-
+//where to send debug messages
+uint8 debugCon=CONPC;
 
 //store for received channel data
 uint16 rxDemands[20];
@@ -164,20 +155,23 @@ extern uint32 maxActualLatency;
 
 
 
-extern void intr_handler(void);
-
-PUBLIC void dumpCode(void* addr, uint32 len)
+void dbgPrintf(const char *fmt, ...)
 {
-  //     uint32* code=(uint32*)addr;
-		uint8* code=(uint8*)addr;
-		uint32 i;
-        for(i=0;i<len;i++)
-        {
-                vPrintf("%x",*(code++));
-        }
-        vPrintf("done");
-        while(1==1);
+	//send as routed message
+	//todo make route a setable parameter so connected devices
+	//can ask for debug messages
+	char buf[196];
+	buf[0]=0;
+	buf[1]=0xff;
+	int ret;
+	va_list ap;
+	va_start(ap, fmt);
+	ret=vsnprintf(buf+3,190,fmt, ap);
+	va_end(ap);
+	buf[2]=ret;
+	rxSendRoutedMessage((uint8*)buf, ret+3,debugCon);
 }
+
 
 #if (JENNIC_CHIP_FAMILY == JN514x)
 	#define BUS_ERROR *((volatile uint32 *)(0x4000000))
@@ -190,6 +184,7 @@ PUBLIC void dumpCode(void* addr, uint32 len)
 #endif
 
 
+
 // event handler function prototypes
 PUBLIC void vBusErrorhandler(void);
 PUBLIC void vUnalignedAccessHandler(void);
@@ -199,7 +194,7 @@ PUBLIC void vBusErrorhandler(void)
 {
 	volatile uint32 u32BusyWait = 1600000;
 	// log the exception
-	pcComsPrintf("\nBus Error Exception");
+	dbgPrintf("\nBus Error Exception");
 	// wait for the UART write to complete
 
 	while(u32BusyWait--){}
@@ -210,7 +205,7 @@ PUBLIC void vUnalignedAccessHandler (void)
 {
 	volatile uint32 u32BusyWait = 1600000;
 	// log the exception
-	pcComsPrintf("\nUnaligned Error Exception");
+	dbgPrintf("\nUnaligned Error Exception");
 	// wait for the UART write to complete
 	while(u32BusyWait--){}
 
@@ -220,12 +215,14 @@ PUBLIC void vIllegalInstructionHandler(void)
 {
 	volatile uint32 u32BusyWait = 1600000;
 	// log the exception
-	pcComsPrintf("\nIllegal Instruction Error Exception");
+	dbgPrintf("\nIllegal Instruction Error Exception");
 	// wait for the UART write to complete
 	while(u32BusyWait--){}
 
 	vAHI_SwReset();
 }
+
+
 
 /****************************************************************************
  *
@@ -252,20 +249,13 @@ PUBLIC void AppColdStart(void)
     vAppApiSetBoostMode(TRUE);
 #endif
 
-    switch (debugchannel)
-    {
-        case UARTDEBUG :// vInitPrintf((void*)vPutC);
-						break;
-        case RADIODEBUG : vInitPrintf((void*)rPutC);
-                            radiodebugbuf[0]=255;
-                            break;
-    }
+
     setHopMode(hoppingRxStartup);
 
  //   loadSettings();
 
     vInitSystem();
-    if(debugchannel==UARTDEBUG)
+    if(debugCon==CONPC)
     {
         //don't use uart pins for servo op
     //    vUART_Init(FALSE);
@@ -284,24 +274,14 @@ PUBLIC void AppColdStart(void)
 
    // bAHI_SetClockRate(3);
 
-    pcComsPrintf("rx24 2.10");
+    dbgPrintf("rx24 2.10 ");
 
     setRadioDataCallback(rxHandleRoutedMessage,CONTX);
 
-
-    int h;
-	 uint8 scc=0;
-	 for(h=0;h<31;h++)
-		 {
-	//		vPrintf(" %d",getNextInHopSequence(&scc));
-		 }
-
-
     MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
-    pcComsPrintf("mac %x %x",macptr->u32H , macptr->u32L);
+    dbgPrintf("mac %x %x ",macptr->u32H , macptr->u32L);
 
-    pcComsPrintf("seed %d %d ",macptr->u32H ^ macptr->u32L, macptr->u32L ^ macptr->u32H);
 
     //use dio 16 for test sync pulse
     vAHI_DioSetDirection(0,1<<16);
@@ -334,6 +314,7 @@ PUBLIC void AppColdStart(void)
     }
 }
 
+
 /****************************************************************************
  *
  * NAME: AppWarmStart
@@ -365,25 +346,15 @@ PUBLIC void AppWarmStart(void)
  * void
  *
  ****************************************************************************/
+
+
 PRIVATE void vInitSystem(void)
 {
-     MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
-
-  //   randomizeHopSequence(((uint32)macptr->u32H) ^ ((uint32)macptr->u32L) );
-
-     uint32 mach=((uint32)macptr->u32H);
-     uint32 macl=((uint32)macptr->u32L);
-
-//     randomizeHopSequence(mach^macl);
-//todo something odd happens with seeding the hop sequence from the mac ptr on 5148
-
-     randomizeHopSequence(2043433);
-
-
 
     /* Setup interface to MAC */
    (void)u32AHI_Init();
    (void)u32AppQApiInit(NULL, NULL, NULL);
+
 
     /* Initialise end device state */
     sEndDeviceData.eState = E_STATE_IDLE;
@@ -406,6 +377,10 @@ PRIVATE void vInitSystem(void)
     // all messages are passed up from lower levels
     // MAC_vPibSetPromiscuousMode(s_pvMac, TRUE, FALSE);
 
+    MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+
+    //moved to after u32AHI_Init() for jn5148
+    randomizeHopSequence(((uint32)macptr->u32H) ^ ((uint32)macptr->u32L) );
 
 }
 /****************************************************************************
@@ -635,7 +610,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		 sEndDeviceData.u16PanId=psFrame->sSrcAddr.u16PanId;
 		 MAC_vPibSetPanId(s_pvMac, sEndDeviceData.u16PanId);
 
-		 pcComsPrintf("tx found \r\n");
+		 dbgPrintf("tx found \r\n");
 
 		 sEndDeviceData.u16Address = 1;
 		 MAC_vPibSetShortAddr(s_pvMac, sEndDeviceData.u16Address);
@@ -684,7 +659,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 
 		if(ml!=maxActualLatency)
 			{
-			pcComsPrintf("- %d",maxActualLatency);
+			dbgPrintf("- %d",maxActualLatency);
 			ml=maxActualLatency;
 			}
 
@@ -702,103 +677,95 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 
 		// should check there is time to do this and limit retries
 
-		//if any debug stuff send it
-		if(radiodebugidx!=1 && debugchannel == RADIODEBUG)
+
+		//cycle through sensor data
+		uint8 au8Packet[6];
+		uint8 packetLen=4;
+
+		au8Packet[1]=returnPacketIdx;
+		uint16 val=0;
+
+		switch (returnPacketIdx)
 		{
-		//	vTransmitDataPacket(radiodebugbuf,radiodebugidx+1,FALSE,FALSE);
-			radiodebugidx=1;
+			case 0:
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+			{
+				val = u16ReadADC(returnPacketIdx);
+				break;
+			}
+			case 6:
+			{
+				val=getErrorRate()+(txLinkQuality<<8);
+				if( readNmeaGps(&gpsData)==FALSE)returnPacketIdx=14;
+				break;
+			}
+			case 7:
+			{
+				readNmeaGps(&gpsData);
+				memcpy(&au8Packet[2],&gpsData.nmeaspeed,4);
+				packetLen=6;
+				break;
+			}
+			case 8:
+			{
+				readNmeaGps(&gpsData);
+				memcpy(&au8Packet[2],&gpsData.nmeaheight,4);
+				packetLen=6;
+				break;
+			}
+			case 9:
+			{
+				readNmeaGps(&gpsData);
+				memcpy(&au8Packet[2],&gpsData.nmeatrack,4);
+				packetLen=6;
+				break;
+			}
+			case 10:
+			{
+				readNmeaGps(&gpsData);
+				memcpy(&au8Packet[2],&gpsData.nmeatime,4);
+				packetLen=6;
+				break;
+			}
+			case 11:
+			{
+				readNmeaGps(&gpsData);
+				memcpy(&au8Packet[2],&gpsData.nmealat,4);
+				packetLen=6;
+				break;
+			}
+			case 12:
+			{
+				readNmeaGps(&gpsData);
+				memcpy(&au8Packet[2],&gpsData.nmealong,4);
+				packetLen=6;
+				break;
+			}
+			case 13:
+			{
+				readNmeaGps(&gpsData);
+				memcpy(&au8Packet[2],&gpsData.nmeasats,4);
+				packetLen=6;
+				break;
+			}
 		}
-		else
+
+		au8Packet[0]=packetLen-1;
+		if(packetLen==4)
 		{
-			//cycle through sensor data
-			uint8 au8Packet[6];
-			uint8 packetLen=4;
-
-			au8Packet[1]=returnPacketIdx;
-			uint16 val=0;
-
-			switch (returnPacketIdx)
-			{
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				{
-					val = u16ReadADC(returnPacketIdx);
-					break;
-				}
-				case 6:
-				{
-					val=getErrorRate()+(txLinkQuality<<8);
-					if( readNmeaGps(&gpsData)==FALSE)returnPacketIdx=14;
-					break;
-				}
-				case 7:
-				{
-					readNmeaGps(&gpsData);
-					memcpy(&au8Packet[2],&gpsData.nmeaspeed,4);
-					packetLen=6;
-					break;
-				}
-				case 8:
-				{
-					readNmeaGps(&gpsData);
-					memcpy(&au8Packet[2],&gpsData.nmeaheight,4);
-					packetLen=6;
-					break;
-				}
-				case 9:
-				{
-					readNmeaGps(&gpsData);
-					memcpy(&au8Packet[2],&gpsData.nmeatrack,4);
-					packetLen=6;
-					break;
-				}
-				case 10:
-				{
-					readNmeaGps(&gpsData);
-					memcpy(&au8Packet[2],&gpsData.nmeatime,4);
-					packetLen=6;
-					break;
-				}
-				case 11:
-				{
-					readNmeaGps(&gpsData);
-					memcpy(&au8Packet[2],&gpsData.nmealat,4);
-					packetLen=6;
-					break;
-				}
-				case 12:
-				{
-					readNmeaGps(&gpsData);
-					memcpy(&au8Packet[2],&gpsData.nmealong,4);
-					packetLen=6;
-					break;
-				}
-				case 13:
-				{
-					readNmeaGps(&gpsData);
-					memcpy(&au8Packet[2],&gpsData.nmeasats,4);
-					packetLen=6;
-					break;
-				}
-			}
-
-			au8Packet[0]=packetLen-1;
-			if(packetLen==4)
-			{
-				au8Packet[2]=val&0xff;
-				au8Packet[3]=val>>8;
-			}
-			vTransmitDataPacket(au8Packet,packetLen,FALSE);
-
-			returnPacketIdx++;
-
-			if(returnPacketIdx>=14)returnPacketIdx=0;
+			au8Packet[2]=val&0xff;
+			au8Packet[3]=val>>8;
 		}
-  }
+		vTransmitDataPacket(au8Packet,packetLen,FALSE);
+
+		returnPacketIdx++;
+
+		if(returnPacketIdx>=14)returnPacketIdx=0;
+	}
 }
 /****************************************************************************
  *
@@ -920,7 +887,7 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
         pu8Payload[i] = *pu8Data++;
     }
 
-    i+=appendLowPriorityData(&pu8Payload[i],8);
+    i+=appendLowPriorityData(&pu8Payload[i],32);
 
 
     /* Set frame length */
@@ -930,20 +897,6 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
     /* Request transmit */
     vAppApiMcpsRequest(&sMcpsReqRsp, &sMcpsSyncCfm);
 }
-
-
-//route vPrinf calls over the radio
-PUBLIC void rPutC(unsigned char c)
-{
-    //ignore overflow
-    if(radiodebugidx<62)
-    {
-        radiodebugbuf[radiodebugidx++]=c;
-    }
-    else radiodebugbuf[63]='#';
-
-}
-
 
 
 //routed message handlers these can either relay messages along routes or handle them
@@ -978,7 +931,7 @@ void rxHandleRoutedMessage(uint8* msg,uint8 len,uint8 fromCon)
 	//see if packet has reached its destination
     if(rmIsMessageForMe(msg)==TRUE)
     {
-     	//message is for us - unwrap the payload
+    	//message is for us - unwrap the payload
     	uint8* msgBody;
     	uint8 msgLen;
     	rmGetPayload(msg,len,&msgBody,&msgLen);
@@ -1026,12 +979,14 @@ void rxHandleRoutedMessage(uint8* msg,uint8 len,uint8 fromCon)
             case 0x94: //commit upload
              	replyLen=commitCodeUpdate(msgBody,replyBody);
 				break;
-
+            case 0x96: //reset
+            	vAHI_SwReset();
+                break;
             case 0xff:  //display local text message
-            	pcComsPrintf("Test0xff ");
+            //	dbgPrintf("Test0xff ");
             	break;
             default :
-            	pcComsPrintf("UnsupportedCmd %d ",msgBody[0]);
+            	dbgPrintf("UnsupportedCmd %d ",msgBody[0]);
             	break;
        }
        if(replyLen>0)
@@ -1047,9 +1002,9 @@ void rxHandleRoutedMessage(uint8* msg,uint8 len,uint8 fromCon)
     	  toCon=rmBuildRelayRoute(msg,fromCon);
     	  //pass message on to connector defined by 'to' address
     	  rxSendRoutedMessage( msg, len, toCon);
+
     }
 }
-
 
 void loadDefaultSettings()
 {
@@ -1109,4 +1064,4 @@ void storeSettings()
 
 /****************************************************************************/
 /***        END OF FILE                                                   ***/
-/****************************************************************************/
+/***************************************************************************/

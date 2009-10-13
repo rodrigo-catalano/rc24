@@ -1466,9 +1466,6 @@ void txHandleRoutedMessage(uint8* msg,uint8 len,uint8 fromCon)
 }
 void rxComsSendRoutedPacket(uint8* msg, int offset, uint8 len)
 {
-    //needs limiting
-    pcComsPrintf("xr");
-//    vTransmitDataPacket(msg+offset,len,1,TRUE);
     queueLowPriorityData(msg+offset,len);
 }
 
@@ -1487,7 +1484,7 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
     if(pu8Data[1]==255)
     {
         //rx debug message
-        pu8Data[u8Len-1]='\0';
+    	pu8Data[u8Len-1]='\0';
         pcComsPrintf("db-%s\r\n",&pu8Data[2]);
     }
     else
@@ -1798,7 +1795,7 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr)
         pu8Payload[i] = *pu8Data++;
     }
 
-    i+=appendLowPriorityData(&pu8Payload[i],8);
+    i+=appendLowPriorityData(&pu8Payload[i],32);
 
     /* Set frame length */
     sMcpsReqRsp.uParam.sReqData.sFrame.u8SduLength = i;

@@ -238,8 +238,13 @@ void pcComsParsePacket(void* buff)
             case 0x25: //read flash type
             {
                 retbuf[0]=0;
+#if (JENNIC_CHIP_FAMILY == JN514x)
+                retbuf[1]=0x12;
+                retbuf[2]=0x12;
+#else
                 retbuf[1]=0x10;
                 retbuf[2]=0x10;
+#endif
                 pcComsSendPacket(retbuf,0,3,0x26);
                 break;
             }
