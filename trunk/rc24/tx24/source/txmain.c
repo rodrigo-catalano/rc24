@@ -758,12 +758,7 @@ PUBLIC void AppColdStart(void)
     vAppApiSetBoostMode(TRUE);
 #endif
 
-    //max power for europe including antenna gain is 10dBm
-    //??? boost is +2.5 ant is 2 and power set to 4 = 8.5 ????
 
-#ifdef HIPOWERMODULE
-    vAHI_HighPowerModuleEnable(TRUE, TRUE);
-#endif
 
  //   setHopMode(hoppingContinuous);
 
@@ -788,11 +783,6 @@ PUBLIC void AppColdStart(void)
 
     pcComsPrintf("tx24 2.11 \r\n");
 
-
-
-#ifdef HIPOWERMODULE
-    bAHI_PhyRadioSetPower(2);
-#endif
     initLcdEADog(E_AHI_SPIM_SLAVE_ENBLE_2,E_AHI_DIO4_INT,E_AHI_DIO5_INT,180,&lcd);
     currentPage=0;
 
@@ -871,15 +861,6 @@ while(1==1)
     //use mac address of rx to seed random hopping sequence
     randomizeHopSequence(liveModel.rxMACh ^ liveModel.rxMACl );
 
-
-    int h;
-   	 uint8 scc=0;
-   	 for(h=0;h<31;h++)
-   		 {
-   			pcComsPrintf(" %d",getNextInHopSequence(&scc));
-   		 }
-
-pcComsPrintf("seed %d",liveModel.rxMACh ^ liveModel.rxMACl);
 
     pcComsPrintf("Model %s\r\n",liveModel.name);
     pcComsPrintf("trim %d\r\n",liveModel.trim[1]);
@@ -1051,6 +1032,15 @@ PRIVATE void vInitSystem(void)
 	(void)u32AHI_Init();
 
 	(void)u32AppQApiInit(NULL, NULL, NULL);
+
+	//move to after u32AHI_Init() to work on jn5148
+#ifdef HIPOWERMODULE
+	   //max power for europe including antenna gain is 10dBm
+       //??? boost is +2.5 ant is 2 and power set to 4 = 8.5 ????
+    vAHI_HighPowerModuleEnable(TRUE, TRUE);
+    bAHI_PhyRadioSetPower(2);
+#endif
+
 
     /* Initialise coordinator state */
     sCoordinatorData.eState = E_STATE_IDLE;
@@ -1441,12 +1431,16 @@ void txHandleRoutedMessage(uint8* msg,uint8 len,uint8 fromCon)
 			case 0x94: //commit upload
 				replyLen=commitCodeUpdate(msgBody,replyBody);
 				break;
+			case 0xa0:  //virtual click on lcd display
+			    displayClick(msgBody[1], msgBody[2]);
+			    break;
 			case 0xff:  //display local text message
 				pcComsPrintf("Test0xff ");
 				break;
 			default :
 				pcComsPrintf("UnsupportedCmd %d ",msgBody[0]);
 				break;
+
        }
        if(replyLen>0)
 	   {
@@ -2405,17 +2399,6 @@ void loadSettings()
     int tag;
     if(getOldStore(&s)==TRUE)
     {
-        int i;
-        for(i=0;i<20;i++)
-        {
-             uint8 val;
-             bAHI_FullFlashRead(s.base+i,1,(uint8*)&val);
-            pcComsPrintf("# %d ",val);
-
-
-        }
-
-
         pcComsPrintf("store found %d \r\n",s.size);
 
         while((tag=storeGetSection(&s,&section))>0)
