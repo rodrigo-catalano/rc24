@@ -679,7 +679,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		 MAC_vPibSetShortAddr(s_pvMac, sEndDeviceData.u16Address);
 
 		 vPrintf("h %d %d l %d %d \r\n",psFrame->sDstAddr.uAddr.sExt.u32H,
-		 macptr->u32H, psFrame->sDstAddr.uAddr.sExt.u32L, macptr->u32L);
+		         macptr->u32H, psFrame->sDstAddr.uAddr.sExt.u32L, macptr->u32L);
 		 */
 
 		// Set the hopping mode
@@ -867,285 +867,454 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
  ****************************************************************************/
 PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 {
-// 4 * 12 bit values + 12bit value and channel indicator
+	// 4 * 12 bit values + 12bit value and channel indicator
 
-// If there is sufficient data, process it
-if (u8Len >= 8)
-{
-	// Decode servo data from packet
-	// TODO - define a structure for this using bitfields
-	rxDemands[0] = pu8Data[0] + ((pu8Data[1] & 0x00f0) << 4);
-	rxDemands[1] = ((pu8Data[1] & 0x000f)) + (pu8Data[2] << 4);
-	rxDemands[2] = pu8Data[3] + ((pu8Data[4] & 0x00f0) << 4);
-	rxDemands[3] = ((pu8Data[4] & 0x000f)) + (pu8Data[5] << 4);
-
-	// Decode channel and value from packet
-	uint8 channel = (pu8Data[6] >> 4) + 4;
-	uint16 value = ((pu8Data[6] & 0x000f)) + (pu8Data[7] << 4);
-
-	// Set the extra channel
-	rxDemands[channel] = value;
-
-	// Set the output values
-	updateOutputs(rxDemands);
-
-	// If there is more data, process it
-	if (u8Len > 8)
+	// If there is sufficient data, process it
+	if (u8Len >= 8)
 	{
-		handleLowPriorityData(pu8Data + 8, u8Len - 8);
+		// Decode servo data from packet
+		// TODO - define a structure for this using bitfields
+		rxDemands[0] = pu8Data[0] + ((pu8Data[1] & 0x00f0) << 4);
+		rxDemands[1] = ((pu8Data[1] & 0x000f)) + (pu8Data[2] << 4);
+		rxDemands[2] = pu8Data[3] + ((pu8Data[4] & 0x00f0) << 4);
+		rxDemands[3] = ((pu8Data[4] & 0x000f)) + (pu8Data[5] << 4);
+
+		// Decode channel and value from packet
+		uint8 channel = (pu8Data[6] >> 4) + 4;
+		uint16 value = ((pu8Data[6] & 0x000f)) + (pu8Data[7] << 4);
+
+		// Set the extra channel
+		rxDemands[channel] = value;
+
+		// Set the output values
+		updateOutputs(rxDemands);
+
+		// If there is more data, process it
+		if (u8Len > 8)
+		{
+			handleLowPriorityData(pu8Data + 8, u8Len - 8);
+		}
 	}
 }
-}
 
+/****************************************************************************
+ *
+ * NAME: frameStartEvent
+ *
+ * DESCRIPTION: Handler for the received data
+ *
+ * PARAMETERS:      Name            RW  Usage
+ * 					buff			?	unused??
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
 void frameStartEvent(void* buff)
 {
-//called every 20ms
-frameCounter++;
-//binding check
-//only do automatic bind request after 10secs to incase this
-//was an unintended reboot in flight
-//only do if not already communicating with a tx
-if (frameCounter > 500 && frameCounter < 5000 && getHopMode()
-		== hoppingRxStartup)
-{
-	// TODO - test binding
-	uint32 channel = 0;
-	eAppApiPlmeGet(PHY_PIB_ATTR_CURRENT_CHANNEL, &channel);
-	if (channel == 11)
+	// Called every 20ms
+	frameCounter++;
+
+	/*
+	 * Binding check
+	 * Only do automatic bind request after 10secs to in case this
+	 * was an unintended reboot in flight
+	 * only do if not already communicating with a tx
+	 *
+	 */
+	if (frameCounter > 500 && frameCounter < 5000 &&
+		getHopMode() == hoppingRxStartup)
 	{
-		uint8 packet[10];
-		packet[0] = 0;//no route
-		packet[1] = 16;//bind request
+		// TODO - test binding
+		uint32 channel = 0;
+		eAppApiPlmeGet(PHY_PIB_ATTR_CURRENT_CHANNEL, &channel);
+		if (channel == 11)
+		{
+			uint8 packet[10];
+			packet[0] = 0;	//no route
+			packet[1] = 16;	//bind request
 
-		MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+			MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
-		memcpy(&packet[2], &macptr->u32L, sizeof(macptr->u32L));
-		memcpy(&packet[6], &macptr->u32H, sizeof(macptr->u32H));
+			memcpy(&packet[2], &macptr->u32L, sizeof(macptr->u32L));
+			memcpy(&packet[6], &macptr->u32H, sizeof(macptr->u32H));
 
-		vTransmitDataPacket(packet, sizeof(packet), TRUE);
+			vTransmitDataPacket(packet, sizeof(packet), TRUE);
+		}
 	}
 }
-}
 
+/****************************************************************************
+ *
+ * NAME: vTransmitDataPacket
+ *
+ * DESCRIPTION: Transmits a data packet
+ *
+ * PARAMETERS:      Name            RW  Usage
+ * 					pu8Data			R	pointer to data to be transmitted
+ * 					u8Len			R	length of data block
+ * 					broadcast		R	flag, TRUE if broadcast to be used
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
 PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 {
-MAC_McpsReqRsp_s sMcpsReqRsp;
-MAC_McpsSyncCfm_s sMcpsSyncCfm;
-uint8 *pu8Payload, i = 0;
+	MAC_McpsReqRsp_s sMcpsReqRsp;
 
-/* Create frame transmission request */
-sMcpsReqRsp.u8Type = MAC_MCPS_REQ_DATA;
-sMcpsReqRsp.u8ParamLength = sizeof(MAC_McpsReqData_s);
-/* Set handle so we can match confirmation to request */
-sMcpsReqRsp.uParam.sReqData.u8Handle = 1;
-/* Use short address for source */
+	// Create frame transmission request
+	sMcpsReqRsp.u8Type = MAC_MCPS_REQ_DATA;
+	sMcpsReqRsp.u8ParamLength = sizeof(MAC_McpsReqData_s);
 
-sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u8AddrMode = TX_ADDRESS_MODE;
-//   sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = sCoordinatorData.u16PanId;
-sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = 0xffff;
+	// Set handle so we can match confirmation to request
+	sMcpsReqRsp.uParam.sReqData.u8Handle = 1;
 
-if (TX_ADDRESS_MODE == 3)//not sure if this is needed
-{
-	MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
-	sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32L = macptr->u32L;
-	sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H = macptr->u32H;
+	// Use short address for source
+	sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u8AddrMode = TX_ADDRESS_MODE;
+
+	// TODO - fix commented out code, setting PanID ?
+	//sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = sCoordinatorData.u16PanId;
+	sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = 0xffff;
+
+	// TODO - subsequent code is unreachable due to definition of TX_ADDRESS_MODE
+	if (TX_ADDRESS_MODE == 3) //not sure if this is needed
+	{
+		MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32L
+				= macptr->u32L;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H
+				= macptr->u32H;
+	}
+
+	// Not broadcasting the packet
+	if (broadcast != TRUE)
+	{
+		// Use long address for destination
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode
+				= RX_ADDRESS_MODE;
+
+		// TODO - fix hard-coded PanID
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u16PanId = 0xffff;//sCoordinatorData.u16PanId;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32L = txMACl;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32H = txMACh;
+
+		// Frame requires ack but not security, indirect transmit or GTS
+		sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = MAC_TX_OPTION_ACK;
+	}
+	else
+	{
+		// A broadcast message, set the destination address and the options
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode = 0;
+		sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = 0;
+	}
+
+	// Get a pointer to the output data buffer
+	uint8 *pu8Payload = sMcpsReqRsp.uParam.sReqData.sFrame.au8Sdu;
+
+	// Index into output data buffer
+	uint8 index = 0;
+
+	// Set the sequence number
+	pu8Payload[0] = sEndDeviceData.u8TxPacketSeqNb++;
+	index += 1;
+
+	// Copy the data packet to the data buffer
+	memcpy(&(pu8Payload[index]), pu8Data, u8Len);
+
+	// Tack on the low priority data
+	// TODO - fix the magic number for the maxlen arg
+	index += appendLowPriorityData(&pu8Payload[index], 32);
+
+	// Set frame length
+	sMcpsReqRsp.uParam.sReqData.sFrame.u8SduLength = index;
+
+	// Request transmit
+	// TODO - sMcpsSyncCfm isn't used
+	MAC_McpsSyncCfm_s sMcpsSyncCfm;
+	vAppApiMcpsRequest(&sMcpsReqRsp, &sMcpsSyncCfm);
 }
 
-if (broadcast != TRUE)
-{
-	/* Use long address for destination */
-	sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode = RX_ADDRESS_MODE;
-	sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u16PanId = 0xffff;//sCoordinatorData.u16PanId;
-	sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32L = txMACl;
-	sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32H = txMACh;
+// Routed message handlers these can either relay messages along routes or handle them
 
-	/* Frame requires ack but not security, indirect transmit or GTS */
-	sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = MAC_TX_OPTION_ACK;
-}
-else
-{
-	sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode = 0;
-	sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = 0;
-}
-
-pu8Payload = sMcpsReqRsp.uParam.sReqData.sFrame.au8Sdu;
-
-pu8Payload[0] = sEndDeviceData.u8TxPacketSeqNb++;
-
-for (i = 1; i < (u8Len + 1); i++)
-{
-	pu8Payload[i] = *pu8Data++;
-}
-
-i += appendLowPriorityData(&pu8Payload[i], 32);
-
-/* Set frame length */
-sMcpsReqRsp.uParam.sReqData.sFrame.u8SduLength = i;
-
-/* Request transmit */
-vAppApiMcpsRequest(&sMcpsReqRsp, &sMcpsSyncCfm);
-}
-
-//routed message handlers these can either relay messages along routes or handle them
-
+/****************************************************************************
+ *
+ * NAME: txComsSendRoutedPacket
+ *
+ * DESCRIPTION: Send a routed packet to the tx
+ *
+ * PARAMETERS:      Name            RW  Usage
+ * 					msg				R	pointer to data to be transmitted
+ * 					len				R	length of data block
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
 void txComsSendRoutedPacket(uint8* msg, uint8 len)
 {
-queueLowPriorityData(msg, len);
+	// Add the packet to the low priority queue
+	queueLowPriorityData(msg, len);
 }
+
+/****************************************************************************
+ *
+ * NAME: rxSendRoutedMessage
+ *
+ * DESCRIPTION: Send a routed packet
+ *
+ * PARAMETERS:      Name            RW  Usage
+ * 					msg				R	pointer to data to be transmitted
+ * 					len				R	length of data block
+ * 					toCon			R	routing indicator
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
+// TODO - make toCon an enum
 void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 {
+	// Send via appropriate channel
+	switch (toCon)
+	{
+	case CONTX:
+	{
+		// Send to the tx
+		txComsSendRoutedPacket(msg, len);
+		break;
+	}
+	case CONPC:
+	{
+		// Wrap routed packet with a 255 cmd to allow coexistance with existing comms
+		// TODO - Fix the command magic number
+		pcComsSendPacket(msg, 0, len, 255);
+		break;
+	}
+	}
+}
 
-switch (toCon)
-{
-case CONTX:
-{
-	txComsSendRoutedPacket(msg, len);
-	break;
-}
-case CONPC:
-{
-	//wrap routed packet with a 255 cmd to allow coexistance with existing coms
-	pcComsSendPacket(msg, 0, len, 255);
-	break;
-}
-}
-}
-
+/****************************************************************************
+ *
+ * NAME: rxHandleRoutedMessage
+ *
+ * DESCRIPTION: Handle a routed packet
+ *
+ * PARAMETERS:      Name            RW  Usage
+ * 					msg				R	pointer to data to be transmitted
+ * 					len				R	length of data block
+ * 					fromCon			R	routing indicator
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
 void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 {
-uint8 replyBuf[256];
+	// TODO - make a definition for the buffer length
+	uint8 replyBuf[256];
 
-//see if packet has reached its destination
-if (rmIsMessageForMe(msg) == TRUE)
-{
-	//message is for us - unwrap the payload
-	uint8* msgBody;
-	uint8 msgLen;
-	rmGetPayload(msg, len, &msgBody, &msgLen);
-
-	uint8 addrLen = rmBuildReturnRoute(msg, replyBuf);
-	uint8* replyBody = replyBuf + addrLen;
-	uint8 replyLen = 0;
-
-	switch (msgBody[0])
+	// See if packet has reached its destination
+	if (rmIsMessageForMe(msg) == TRUE)
 	{
-	case 0: //enumerate name and all children except fromCon
-	{
-		uint8 i;
+		// Message is for us - unwrap the payload
+		uint8* msgBody;
+		uint8 msgLen;
+		rmGetPayload(msg, len, &msgBody, &msgLen);
 
-		*replyBody++ = 1;//enumerate response id
-		*replyBody++ = 2;//string length
-		*replyBody++ = 'R';
-		*replyBody++ = 'X';
-		for (i = 0; i < 2; i++)
+		// Start building the reply, starting with the address
+		uint8 addrLen = rmBuildReturnRoute(msg, replyBuf);
+		uint8* replyBody = replyBuf + addrLen;
+		uint8 replyLen = 0;
+
+		// TODO - make the function code an enum
+		switch (msgBody[0])
 		{
-			if (i != fromCon)
-				*replyBody++ = i;
+		case 0: // enumerate name and all children except fromCon
+		{
+			// TODO - replace magic number
+			*replyBody++ = 1;//enumerate response id
+			*replyBody++ = 2;//string length
+			*replyBody++ = 'R';
+			*replyBody++ = 'X';
+			// TODO - ???
+			uint8 i;
+			for (i = 0; i < 2; i++)
+			{
+				if (i != fromCon)
+					*replyBody++ = i;
+			}
+			replyLen = 5;
+			break;
 		}
-		replyLen = 5;
-		break;
-	}
-	case 2: //enumerate all methods
-	{
-		break;
-	}
-	case 17: //bind response
-	{
-		//if in bind mode
-		//set txmac
-		memcpy(&txMACl, msgBody, 4);
-		memcpy(&txMACh, msgBody + 4, 4);
-		break;
-	}
 
-	case 0x90: //start upload
-		replyLen = startCodeUpdate(msgBody, replyBody);
-		break;
-	case 0x92: //upload chunk
-		replyLen = codeUpdateChunk(msgBody, replyBody);
-		break;
-	case 0x94: //commit upload
-		replyLen = commitCodeUpdate(msgBody, replyBody);
-		break;
-	case 0x96: //reset
-		vAHI_SwReset();
-		break;
-	case 0xff: //display local text message
-		//	dbgPrintf("Test0xff ");
-		break;
-	default:
-		dbgPrintf("UnsupportedCmd %d ", msgBody[0]);
-		break;
+		case 2: // Enumerate all methods
+		{
+			// TODO - Presume some code goes here
+			break;
+		}
+
+		case 17: // Bind response
+		{
+			// If in bind mode set txmac
+			// TODO - no check for bind mode
+			memcpy(&txMACl, msgBody, sizeof(txMACl));
+			memcpy(&txMACh, msgBody + 4, sizeof(txMACh));
+			break;
+		}
+
+		case 0x90: // Start upload
+		{
+			replyLen = startCodeUpdate(msgBody, replyBody);
+			break;
+		}
+
+		case 0x92: // Upload chunk
+		{
+			replyLen = codeUpdateChunk(msgBody, replyBody);
+			break;
+		}
+
+		case 0x94: // Commit upload
+		{
+			replyLen = commitCodeUpdate(msgBody, replyBody);
+			break;
+		}
+
+		case 0x96: // Reset
+		{
+			vAHI_SwReset();
+			break;
+		}
+
+		case 0xff: // Display local text message
+		{
+			// TODO - fix commented out code
+			//	dbgPrintf("Test0xff ");
+			break;
+		}
+
+		default:
+		{
+			dbgPrintf("UnsupportedCmd %d ", msgBody[0]);
+			break;
+		}
+		}
+
+		// If there is a response, send it out
+		if (replyLen > 0)
+		{
+			rxSendRoutedMessage(replyBuf, replyLen + addrLen, fromCon);
+		}
 	}
-	if (replyLen > 0)
+	else
 	{
-		rxSendRoutedMessage(replyBuf, replyLen + addrLen, fromCon);
+		// Not for us, relay message
+		// Swap last 'to' to 'from' in situ
+		uint8 toCon = rmBuildRelayRoute(msg, fromCon);
+		// Pass message on to connector defined by 'to' address
+		rxSendRoutedMessage(msg, len, toCon);
 	}
-}
-else
-{
-	//relay message
-	uint8 toCon;
-	//swap last 'to' to 'from' in situ
-	toCon = rmBuildRelayRoute(msg, fromCon);
-	//pass message on to connector defined by 'to' address
-	rxSendRoutedMessage(msg, len, toCon);
-}
 }
 
+/****************************************************************************
+ *
+ * NAME: loadDefaultSettings
+ *
+ * DESCRIPTION: Load the default settings for the Rx
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
 void loadDefaultSettings()
 {
-
+	// TODO - Add some code
 }
+
+/****************************************************************************
+ *
+ * NAME: loadSettings
+ *
+ * DESCRIPTION: Load the current settings for the Rx
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
 void loadSettings()
 {
+	// Select the flash type
+	bAHI_FlashInit(E_FL_CHIP_AUTO, NULL);
 
-bAHI_FlashInit(E_FL_CHIP_AUTO, NULL);
+	// Retrieve the default settings
+	loadDefaultSettings();
 
-loadDefaultSettings();
-
-store s;
-store section;
-int tag;
-if (getOldStore(&s) == TRUE)
-{
-	while ((tag = storeGetSection(&s, &section)) > 0)
+	// TODO - Explain this
+	store s;
+	store section;
+	int tag;
+	if (getOldStore(&s) == TRUE)
 	{
-		switch (tag)
+		while ((tag = storeGetSection(&s, &section)) > 0)
 		{
-		case STORERXBINDING_MACL:
-			txMACl = (uint32) readInt32(&section);
-			break;
-		case STORERXBINDING_MACH:
-			txMACh = (uint32) readInt32(&section);
-			break;
+			switch (tag)
+			{
+			case STORERXBINDING_MACL:
+				txMACl = (uint32) readInt32(&section);
+				break;
+			case STORERXBINDING_MACH:
+				txMACh = (uint32) readInt32(&section);
+				break;
 
+			}
 		}
 	}
 }
-}
+
+/****************************************************************************
+ *
+ * NAME: storeSettings
+ *
+ * DESCRIPTION: Store the current settings for the Rx
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
 void storeSettings()
 {
-store s;
-store old;
-store* pold;
-bAHI_FlashInit(E_FL_CHIP_AUTO, NULL);
+	store s;
+	store old;
 
-if (getOldStore(&old) == TRUE)
-{
-	pold = &old;
-}
-else
-{
-	pold = NULL;
-}
+	// TODO - what is this used for?
+	store* pold;
 
-getNewStore(&s);
+	// Select the flash chip type
+	bAHI_FlashInit(E_FL_CHIP_AUTO, NULL);
 
-storeInt32Section(&s, STORERXBINDING_MACL, (uint32) txMACl);
-storeInt32Section(&s, STORERXBINDING_MACH, (uint32) txMACh);
+	if (getOldStore(&old) == TRUE)
+	{
+		pold = &old;
+	}
+	else
+	{
+		pold = NULL;
+	}
 
-commitStore(&s);
+	// TODO - Explain
+	getNewStore(&s);
+
+	storeInt32Section(&s, STORERXBINDING_MACL, (uint32) txMACl);
+	storeInt32Section(&s, STORERXBINDING_MACH, (uint32) txMACh);
+
+	commitStore(&s);
 }
 
 /****************************************************************************/
