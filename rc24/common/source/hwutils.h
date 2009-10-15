@@ -21,3 +21,5 @@ Copyright 2008 - 2009 © Alan Hopper
 
 void cycleDelay(uint32 del);
 uint16 u16ReadADC(uint8 channel);
+uint32 flashSectorSize(void);
+uint32 flashNumSectors(void);
