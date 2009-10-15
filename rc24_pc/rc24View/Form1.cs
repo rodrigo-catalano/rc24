@@ -63,7 +63,7 @@ namespace Serial
         byte jennicMsgLen = 0;
         byte jennicMsgNextIdx = 0;
 
-        const byte SERIALCON = 0; 
+        const byte SERIALCON = 0;
 
         DateTime lastData = DateTime.Now;
 
@@ -99,11 +99,12 @@ namespace Serial
 
         void lcd1_MouseClick(object sender, MouseEventArgs e)
         {
-            byte[] buf = new byte[2];
-            buf[0] = (byte)(e.X / 2);
-            buf[1] = (byte)(e.Y / 2);
-            JennicPacket.Write(inp, buf, 0, 2, 0x94);
-
+            byte[] cmd = new byte[3];
+            cmd[0] = 0xa0;
+            cmd[1] = (byte)(e.X / 2);
+            cmd[2] = (byte)(e.Y / 2);
+            routedMessage msg = new routedMessage(route.DirectLink, cmd);        
+            SendRoutedMessage(msg,SERIALCON);
         }
 
 
@@ -211,7 +212,7 @@ namespace Serial
             string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("txbinpath5148")[0];
             blupload.upload(filename, filename5148, inp, textBoxStatus, textBox1);
 
-            
+
             //    blupload.runFromMem("C:\\Jennic\\cygwin\\jennic\\SDK\\Application\\onewirebootloader\\JN5139_Build\\Release\\onewirebootloader.bin", inp, textBoxStatus, textBox1);
         }
 
@@ -219,13 +220,13 @@ namespace Serial
         {
             string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath")[0];
             string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath5148")[0];
-            blupload.upload(filename,filename5148, inp, textBoxStatus, textBox1);
-       
-            
+            blupload.upload(filename, filename5148, inp, textBoxStatus, textBox1);
+
+
             //blupload.upload("C:\\Jennic\\cygwin\\jennic\\SDK\\Application\\onewirebootloader\\JN5139_Build\\Release\\onewirebootloader.bin", inp, textBoxStatus, textBox1);
 
         }
-                        
+
         private void processJennicMsg(byte[] buff)
         {
             if (this.InvokeRequired)
@@ -272,7 +273,7 @@ namespace Serial
                 }
                 if (cmd == 0xff)
                 {
-                    pcHandleRoutedMessage(buff, 2, len - 2,0);
+                    pcHandleRoutedMessage(buff, 2, len - 2, 0);
                 }
                 else
                 {
@@ -327,7 +328,7 @@ namespace Serial
                         }
                         else
                         {
-                             code.Append("," + b);
+                            code.Append("," + b);
                         }
                     }
 
@@ -340,77 +341,77 @@ namespace Serial
             }
             Clipboard.SetText(code.ToString());
         }
-        
+
         private void buttonRefreshTree_Click(object sender, EventArgs e)
         {
             pcNode.children.Clear();
             bindtree(pcNode);
             treeWalker = new routedTreeWalker(pcNode);
-            SendRoutedMessage(treeWalker.getNextRequest(),0);
+            SendRoutedMessage(treeWalker.getNextRequest(), 0);
         }
         private void pcHandleRoutedMessage(byte[] buff, int offset, int len, byte fromCon)
         {
-            routedMessage msg=new routedMessage(buff,offset,len);
-            
+            routedMessage msg = new routedMessage(buff, offset, len);
+
             //see if packet has reached its destination
             if (msg.Route.isForMe())//no to addresses
             {
                 switch (msg.commandByte)
                 {
                     case 0x01: //enumerate response
-                    {
-                        if (treeWalker != null)
                         {
-                            treeWalker.enumerateResponse(msg);
-                            routedMessage resp = treeWalker.getNextRequest();
-                            if (resp != null) SendRoutedMessage(resp, 0);
-                            else
+                            if (treeWalker != null)
                             {
+                                treeWalker.enumerateResponse(msg);
+                                routedMessage resp = treeWalker.getNextRequest();
+                                if (resp != null) SendRoutedMessage(resp, 0);
+                                else
+                                {
 
+                                }
+                                bindtree(pcNode);
                             }
-                            bindtree(pcNode);
+                            break;
                         }
-                        break;
-                    }
                     case 0x91: //code update initialized
-                    {
-                        if (rUpload != null)
+                        {
+                            if (rUpload != null)
+                            {
+                                msg.readByte();
+                                string moduleType = msg.readString();
+                                string key;
+                                if (activeNode.name == "TX") key = "txbinpath";
+                                else key = "rxbinpath";
+                                if (moduleType == "JN5148") key += "5148";
+
+                                string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues(key)[0];
+                                rUpload.setFile(filename);
+                                routedMessage reply = rUpload.sendNextCmd(msg);
+                                if (reply != null) SendRoutedMessage(reply, fromCon);
+                            }
+                            break;
+                        }
+                    case 0x93: //code chunk recieved
+                        {
+                            if (rUpload != null)
+                            {
+                                routedMessage reply = rUpload.sendNextCmd(msg);
+                                if (reply != null) SendRoutedMessage(reply, fromCon);
+                            }
+                            break;
+                        }
+                    case 0x95: //
                         {
                             msg.readByte();
-                            string moduleType=msg.readString();
-                            string key;
-                            if(activeNode.name=="TX")key="txbinpath";
-                            else key="rxbinpath";
-                            if (moduleType == "JN5148") key += "5148";
-                
-                            string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues(key)[0];
-                            rUpload.setFile(filename);
-                            routedMessage reply=rUpload.sendNextCmd(msg);
-                            if(reply!=null)SendRoutedMessage(reply,fromCon);
+                            MessageBox.Show("Upload Failed " + msg.readByte());
+                            break;
                         }
-                        break;
-                    }
-                    case 0x93: //code chunk recieved
-                    {
-                        if (rUpload != null)
-                        {
-                            routedMessage reply = rUpload.sendNextCmd(msg);
-                            if (reply != null) SendRoutedMessage(reply, fromCon);
-                        }
-                        break;
-                    }
-                    case 0x95: //
-                    {
-                        msg.readByte();
-                        MessageBox.Show("Upload Failed " + msg.readByte());
-                        break;
-                    }
                     case 0xff://debug message
-                    {
-                        msg.readByte();
-                        SetText(msg.readString());
-                        break;
-                    }
+                        {
+                            msg.readByte();
+                            SetText(msg.readString());
+                            break;
+                        }
                 }
             }
             else
@@ -431,7 +432,7 @@ namespace Serial
         }
         void SendRoutedMessage(routedMessage message, byte toCon)
         {
-            byte[] msg=message.toByteArray();
+            byte[] msg = message.toByteArray();
             pcSendRoutedMessage(msg, 0, (byte)msg.Length, toCon);
         }
         void pcSendRoutedMessage(byte[] buff, int offset, byte len, byte toCon)
@@ -451,7 +452,7 @@ namespace Serial
             tNode.Tag = node;
             foreach (routedNode child in node.children.Values)
             {
-                TreeNode childt=tNode.Nodes.Add(child.name);
+                TreeNode childt = tNode.Nodes.Add(child.name);
                 bindtree(child, childt);
             }
         }
@@ -461,8 +462,8 @@ namespace Serial
             //populate options for node 
             //quick fix use node name to select options
             //todo enumerate options from node or cache
-            routedNode node= (routedNode)e.Node.Tag;
-            activeNode=node;
+            routedNode node = (routedNode)e.Node.Tag;
+            activeNode = node;
             labelNodeName.Text = node.name;
             switch (node.name)
             {
@@ -483,20 +484,20 @@ namespace Serial
 
         private void buttonUploadCode_Click(object sender, EventArgs e)
         {
-            if(activeNode.name=="TX")
-            {    
+            if (activeNode.name == "TX")
+            {
                 string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues("txbinpath")[0];
                 string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("txbinpath5148")[0];
                 rUpload = new routedUploader();
             }
-            if(activeNode.name=="RX")
+            if (activeNode.name == "RX")
             {
                 string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath")[0];
                 string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath5148")[0];
                 rUpload = new routedUploader();
             }
 
-            routedMessage msg= new routedMessage(activeNode.address, new byte[] { 0x90 });
+            routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x90 });
             SendRoutedMessage(msg, SERIALCON);
         }
 
@@ -505,5 +506,5 @@ namespace Serial
             routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x96 });
             SendRoutedMessage(msg, SERIALCON);
         }
-    }   
+    }
 }
