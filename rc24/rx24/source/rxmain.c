@@ -44,6 +44,9 @@
 /***        Macro Definitions                                             ***/
 /****************************************************************************/
 
+#define CONTX 0
+#define CONPC 1
+
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/
@@ -68,8 +71,6 @@ typedef struct
 
 } tsEndDeviceData;
 
-uint32 u32TimerTicks = 0;
-
 /****************************************************************************/
 /***        Local Function Prototypes                                     ***/
 /****************************************************************************/
@@ -81,7 +82,6 @@ PRIVATE void vProcessIncomingHwEvent(AppQApiHwInd_s *psAHI_Ind);
 PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd);
 PRIVATE void vHandleMcpsDataDcfm(MAC_McpsDcfmInd_s *psMcpsInd);
 PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len);
-
 PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast);
 
 void frameStartEvent(void* buff);
@@ -93,9 +93,6 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon);
 void loadDefaultSettings(void);
 void loadSettings(void);
 void storeSettings(void);
-
-#define CONTX 0
-#define CONPC 1
 
 //PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap);
 
@@ -136,7 +133,6 @@ uint32 txMACl = 0;
 
 pcCom pccoms;
 
-extern uint32 maxActualLatency;
 
 /****************************************************************************/
 /***        Exported Functions                                            ***/
@@ -377,6 +373,53 @@ PUBLIC void AppColdStart(void)
 PUBLIC void AppWarmStart(void)
 {
 	AppColdStart();
+}
+
+/****************************************************************************
+ *
+ * NAME: frameStartEvent
+ *
+ * DESCRIPTION: Handler for the frame start notification
+ *
+ * PARAMETERS:      Name            RW  Usage
+ * 					buff			?	unused??
+ *
+ * RETURNS:
+ *
+ * NOTES:
+ ****************************************************************************/
+PUBLIC void frameStartEvent(void* buff)
+{
+	// Called every 20ms
+	frameCounter++;
+
+	/*
+	 * Binding check
+	 * Only do automatic bind request after 10secs to in case this
+	 * was an unintended reboot in flight
+	 * only do if not already communicating with a tx
+	 *
+	 */
+	if (frameCounter > 500 && frameCounter < 5000 &&
+		getHopMode() == hoppingRxStartup)
+	{
+		// TODO - test binding
+		uint32 channel = 0;
+		eAppApiPlmeGet(PHY_PIB_ATTR_CURRENT_CHANNEL, &channel);
+		if (channel == 11)
+		{
+			uint8 packet[10];
+			packet[0] = 0;	//no route
+			packet[1] = 16;	//bind request
+
+			MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+
+			memcpy(&packet[2], &macptr->u32L, sizeof(macptr->u32L));
+			memcpy(&packet[6], &macptr->u32H, sizeof(macptr->u32H));
+
+			vTransmitDataPacket(packet, sizeof(packet), TRUE);
+		}
+	}
 }
 
 /****************************************************************************/
@@ -893,53 +936,6 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 		if (u8Len > 8)
 		{
 			handleLowPriorityData(pu8Data + 8, u8Len - 8);
-		}
-	}
-}
-
-/****************************************************************************
- *
- * NAME: frameStartEvent
- *
- * DESCRIPTION: Handler for the received data
- *
- * PARAMETERS:      Name            RW  Usage
- * 					buff			?	unused??
- *
- * RETURNS:
- *
- * NOTES:
- ****************************************************************************/
-void frameStartEvent(void* buff)
-{
-	// Called every 20ms
-	frameCounter++;
-
-	/*
-	 * Binding check
-	 * Only do automatic bind request after 10secs to in case this
-	 * was an unintended reboot in flight
-	 * only do if not already communicating with a tx
-	 *
-	 */
-	if (frameCounter > 500 && frameCounter < 5000 &&
-		getHopMode() == hoppingRxStartup)
-	{
-		// TODO - test binding
-		uint32 channel = 0;
-		eAppApiPlmeGet(PHY_PIB_ATTR_CURRENT_CHANNEL, &channel);
-		if (channel == 11)
-		{
-			uint8 packet[10];
-			packet[0] = 0;	//no route
-			packet[1] = 16;	//bind request
-
-			MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
-
-			memcpy(&packet[2], &macptr->u32L, sizeof(macptr->u32L));
-			memcpy(&packet[6], &macptr->u32H, sizeof(macptr->u32H));
-
-			vTransmitDataPacket(packet, sizeof(packet), TRUE);
 		}
 	}
 }

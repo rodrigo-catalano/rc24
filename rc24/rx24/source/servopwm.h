@@ -19,15 +19,39 @@ Copyright 2008 - 2009 © Alan Hopper
 
 */
 
+#ifndef _SERVO_PWM_H
+#define _SERVO_PWM_H
 
-PUBLIC void initServoPwm(uint8 nServos);
-PUBLIC void setServoBit(uint16 channel,int bit);
-PUBLIC void setServoDemand(uint16 channel,uint32 dem);
-PUBLIC void startServoPwm(void);
-PUBLIC uint8 servoIdx(void);
-PUBLIC void tick_handler(void);
-PUBLIC int getSeqClock(void);
-PUBLIC void calcSyncError(int txTime);
-PUBLIC uint32 getErrorRate(void);
+/****************************************************************************/
+/***        Exported variables											  ***/
+/****************************************************************************/
 
+// Maximum recorded latency
+PUBLIC extern uint32 maxActualLatency;
 
+/****************************************************************************/
+/***        Exported Function Prototypes                                  ***/
+/****************************************************************************/
+
+// Initialise the servo pwm system
+PUBLIC void initServoPwm (const uint8 nServos);
+
+// Set the DIO to use for a servo channel
+PUBLIC void setServoBit (const uint16 channel, const int bit);
+
+// Set the demanded position for a servo
+PUBLIC void setServoDemand (const uint16 channel, const uint32 demand);
+
+// Calculate an error value TODO - Explain
+PUBLIC void calcSyncError (const int txTime);
+
+// Start the servo pwm system
+PUBLIC void startServoPwm (void);
+
+// Return some time info TODO - Explain
+PUBLIC int getSeqClock (void);
+
+// Return an error rate TODO - Explain
+PUBLIC uint32 getErrorRate (void);
+
+#endif
