@@ -30,7 +30,6 @@ typedef enum
 void randomizeHopSequence(uint32 seed);
 uint32 getNextInHopSequence(uint8* currentidx);
 uint32 getHopChannel(uint32 seqClock);
-void enableHopping(bool enable);
 void setHopMode(hopMode mode);
 hopMode getHopMode(void);
 

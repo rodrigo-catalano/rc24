@@ -54,4 +54,7 @@ PUBLIC int getSeqClock (void);
 // Return an error rate TODO - Explain
 PUBLIC uint32 getErrorRate (void);
 
+// Set app context function called at start of each frame
+PUBLIC void setFrameCallback(SW_EVENT_FN callback);
+
 #endif
