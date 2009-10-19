@@ -116,10 +116,14 @@ PRIVATE void buildServoQueue(void);
 extern void intr_handler (void);
 #endif
 
+#if (JENNIC_CHIP_FAMILY == JN514x)
 // Tick interrupt handlers
 // TODO - Check PRIVATE doesn't break anything
+#define TICK_INTR *((volatile uint32 *)(0x4000004))
+#define EXT_INTR *((volatile uint32 *)(0x4000010))
 PRIVATE void tick_handler(void);
 PRIVATE void extern_intr_handler(void);
+#endif
 
 /****************************************************************************/
 /***        Exported Variables											  ***/
@@ -130,7 +134,6 @@ PUBLIC uint32 maxActualLatency = 0; // Maximum recorded latency
 /****************************************************************************/
 /***        Local Variables                                               ***/
 /****************************************************************************/
-
 // TODO - not all items are servos, rename??
 PRIVATE servoOpQueue servoQueue[maxServoQueueLen]; // The array of queued action items
 PRIVATE servoOutputs servos[MAX_SERVOS]; // The array of servo output items
@@ -138,7 +141,7 @@ PRIVATE uint8 numServos; // Number of actual servos in use
 // TODO - not all items are servos, rename??
 PRIVATE uint32 maxServoQueueIdx = 0; // The biggest output item index expected
 PRIVATE volatile uint8 servoQueueIdx = 255; // Current output item index, volatile as updated in interrupt
-// TODO - rename, size according to MAX_SERVOS??
+// TODO - rename, size according to MAX_SERVOS?? not used??
 PRIVATE uint32 lat[10]; // Latency of servo output
 // TODO - Explain
 PRIVATE int seqClock = 0;
@@ -153,7 +156,6 @@ PRIVATE uint32 packetsCounter = 0; // Packets received this frame
 PRIVATE uint32 errorCounter = 0; // Counter
 const uint32 maxLatency = 300; // Max recorded for jn5148 114 ticks with 16Mhz clock
 // So this could be reduced
-
 PRIVATE SW_EVENT_FN frameStartCallback = NULL;
 
 /****************************************************************************/
@@ -210,9 +212,6 @@ PUBLIC void initServoPwm(const uint8 nServos)
 	//priority interrupts first, even if the tick timer
 	//interrupted first.
 #if (JENNIC_CHIP_FAMILY == JN514x)
-
-#define TICK_INTR *((volatile uint32 *)(0x4000004))
-#define EXT_INTR *((volatile uint32 *)(0x4000010))
 
 	TICK_INTR = (uint32) tick_handler;
 	EXT_INTR = (uint32) extern_intr_handler;
@@ -576,104 +575,124 @@ PRIVATE void buildServoQueue()
 
 	//time && io stuff for servos and channel change
 
-	int i = 0;
-	int ii;
+	int i = 0; // Index into item array
+	int ii; // Index into servos array
 	int n;
-	uint32 stagger = 64* 16 ;
-	uint8 sorted[8] =
-	{ 0, 1, 2, 3, 4, 5, 6, 7 };
-	uint32 totalDelay = 0;
+	uint32 stagger = 64 * 16;
+	uint8 sorted[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+	uint32 totalDelay = 0; // Total servo operation time - TODO Explain
 
 	//sort servos based on demand
-
 	qsort(sorted, numServos, sizeof(uint8), compServo);
 
-	//   vPrintf("#%d %d#",sorted[0],sorted[1]);
+	//vPrintf("#%d %d#",sorted[0],sorted[1]);
 	//0 ms
-	servoQueue[i].action_time = 5000* 16 ;servoQueue[i].on=0;
-	servoQueue[i].off=0;
-	servoQueue[i].action_type=HOP_ACTION | APP_EVENT_ACTION;
+	servoQueue[i].action_time = 5000 * 16;
+	servoQueue[i].on = 0;
+	servoQueue[i].off = 0;
+	servoQueue[i].action_type = HOP_ACTION | APP_EVENT_ACTION;
 
 	i++;
 	// 5ms
-	servoQueue[i].action_time=1000*16;
-	servoQueue[i].on=0;
-	servoQueue[i].off=0;
-	servoQueue[i].action_type=SERVO_CALC_ACTION;// | HOP_ACTION;
+	servoQueue[i].action_time = 1000 * 16;
+	servoQueue[i].on = 0;
+	servoQueue[i].off = 0;
+	servoQueue[i].action_type = SERVO_CALC_ACTION;// | HOP_ACTION;
 	i++;
-	n=0;
+	n = 0;
 
-	//6ms
-	for(ii=0;ii<numServos-1;ii++)
+	// 6ms - Start servo outputs
+	// loop for all configured servos
+	for (ii = 0; ii < (numServos - 1); ii++)
 	{
-		servoQueue[i].action_time=stagger;
-		totalDelay+=servoQueue[i].action_time;
-		if(servos[sorted[ii]].active)servoQueue[i].on=servos[sorted[ii]].opbitmask;
-		else servoQueue[i].on=0;
-		servoQueue[i].off=0;
-		servoQueue[i].action_type=IO_ACTION;
+		// For each servo output item, stagger the operation from the last servo
+		servoQueue[i].action_time = stagger;
+
+		// Update the total delay - TODO could just use maths to set this
+		totalDelay += stagger;
+
+		// If the servo is active, set the DIO bit to use
+		if (servos[sorted[ii]].active)
+			servoQueue[i].on = servos[sorted[ii]].opbitmask;
+		else
+			servoQueue[i].on = 0;
+
+		// Clear the off bit and set the action type
+		servoQueue[i].off = 0;
+		servoQueue[i].action_type = IO_ACTION;
+
+		// Bump the output item index for the next item
 		i++;
 	}
-	n=0;
-	//turn last servo on and set time for first one off
-	servoQueue[i].action_time=servos[sorted[n]].demand-(numServos-1)*stagger;
+	n = 0;
+	// Turn last servo on and set time for first one off - TODO explain
+	servoQueue[i].action_time = servos[sorted[n]].demand - (numServos - 1)
+			* stagger;
 
-	if(servos[sorted[ii]].active)
+	// TODO - Explain
+	if (servos[sorted[ii]].active)
 	{
-		servoQueue[i].on=servos[sorted[ii]].opbitmask;
+		servoQueue[i].on = servos[sorted[ii]].opbitmask;
 	}
 	else
 	{
-		servoQueue[i].on=0;
+		servoQueue[i].on = 0;
 	}
-	totalDelay+=servoQueue[i].action_time;
 
-	servoQueue[i].off=0;
-	servoQueue[i].action_type=IO_ACTION;
+	// TODO - Explain
+	totalDelay += servoQueue[i].action_time;
+
+	servoQueue[i].off = 0;
+	servoQueue[i].action_type = IO_ACTION;
 	i++;
 	n++;
 
-	//turn off servos
-	for(ii=0;ii<numServos-1;ii++)
+	// Turn off servos
+	for (ii = 0; ii < numServos - 1; ii++)
 	{
-		servoQueue[i].action_time=servos[sorted[n]].demand-servos[sorted[n-1]].demand+stagger;
-		servoQueue[i].on=0;
-		if(servos[sorted[n-1]].active)
+		servoQueue[i].action_time = servos[sorted[n]].demand -
+		                            servos[sorted[n - 1]].demand +
+		                            stagger;
+		servoQueue[i].on = 0;
+		if (servos[sorted[n - 1]].active)
 		{
-			servoQueue[i].off=servos[sorted[n-1]].opbitmask;
+			servoQueue[i].off = servos[sorted[n - 1]].opbitmask;
 		}
 		else
 		{
-			servoQueue[i].off=0;
+			servoQueue[i].off = 0;
 		}
-		totalDelay+=servoQueue[i].action_time;
-		servoQueue[i].action_type=IO_ACTION;
+		totalDelay += servoQueue[i].action_time;
+		servoQueue[i].action_type = IO_ACTION;
 		i++;
 		n++;
 	}
 
+	// TODO - no longer required??
 	//servoQueue[i].action_time=18000*16;
-	//turn off last servo and set time for 10ms intr
-	servoQueue[i].action_time=4000*16-totalDelay;
 
-	servoQueue[i].on=0;
-	servoQueue[i].off=servos[sorted[n-1]].opbitmask;
-	servoQueue[i].action_type=IO_ACTION;
+	// Turn off last servo and set time to end at 10ms
+	// TODO - Fix magic numbers
+	servoQueue[i].action_time = 4000 * 16 - totalDelay ;
+	servoQueue[i].on = 0;
+	servoQueue[i].off = servos[sorted[n - 1]].opbitmask;
+	servoQueue[i].action_type = IO_ACTION;
 
 	i++;
 	//10ms
-	servoQueue[i].action_time=5000*16;
+	servoQueue[i].action_time = 5000 * 16;
 	servoQueue[i].on=0;
 	servoQueue[i].off=0;
-	servoQueue[i].action_type=NO_ACTION;//  HOP_ACTION;
+	servoQueue[i].action_type= NO_ACTION;//  HOP_ACTION;
 
 	i++;
 	//15ms
-	servoQueue[i].action_time=5000*16;
+	servoQueue[i].action_time=5000 * 16;
 	servoQueue[i].on=0;
 	servoQueue[i].off=0;
-	servoQueue[i].action_type=SYNC_ACTION;//  HOP_ACTION | SYNC_ACTION;
+	servoQueue[i].action_type= SYNC_ACTION;//  HOP_ACTION | SYNC_ACTION;
 
+	// TODO - fix commented out code
 	/*
 	 uint32 tt=0;
 	 for(i=0;i<maxServoQueueIdx;i++)
@@ -708,7 +727,7 @@ PRIVATE void buildServoQueue()
 PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap)
 {
 
-	//either turn on or off servos or change channel
+	// Either turn on or off servos or change channel
 
 	//correct for variation in latency
 	uint32 latency = u32AHI_TickTimerRead();
@@ -753,6 +772,7 @@ PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap)
 	{
 		reSyncToTx();
 	}
+
 	if ((servoQueue[servoQueueIdx].action_type & HOP_ACTION) != 0)
 	{
 		//change frequency
@@ -763,66 +783,66 @@ PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap)
 
 		eAppApiPlmeSet(PHY_PIB_ATTR_CURRENT_CHANNEL, newchannel);
 
-		//toggle dio 16 so tx/rx sync can be checked on scope
+		// Toggle dio 16 so tx/rx sync can be checked on scope
 
-		if ((((seqClock % maxSeqClock) / (20000* 16 ))&1) == 1)
-				vAHI_DioSetOutput (
-1			<<16,0);
-			else
-			vAHI_DioSetOutput(0,1<<16);
+		if ((((seqClock % maxSeqClock) / (20000 * 16)) & 1) == 1)
+			vAHI_DioSetOutput(1 << 16, 0);
+		else
+			vAHI_DioSetOutput(0, 1 << 16);
 
-		}
-		if((servoQueue[servoQueueIdx].action_type & SERVO_CALC_ACTION) !=0)
-		{
-			//calculate servo timings
-			buildServoQueue();
-		}
-		if((servoQueue[servoQueueIdx].action_type & APP_EVENT_ACTION) !=0)
-		{
-			//todo test
-			//send event to app context
-			if(frameStartCallback!=NULL)swEventQueuePush(frameStartCallback,NULL);
-
-		}
-		servoQueueIdx++;
-
-		if(servoQueueIdx>=maxServoQueueIdx)
-		{
-			servoQueueIdx=0;
-
-			errorCounter++;
-			if(errorCounter>=100)
-			{
-				errorCounter=0;
-				packetsReceived=packetsCounter;
-				packetsCounter=0;
-
-			}
-			//       vPrintf("z");
-		}
-		//   lat[servoQueueIdx]=latency;
 	}
+	if ((servoQueue[servoQueueIdx].action_type & SERVO_CALC_ACTION) != 0)
+	{
+		// Calculate servo timings
+		buildServoQueue();
+	}
+	if ((servoQueue[servoQueueIdx].action_type & APP_EVENT_ACTION) != 0)
+	{
+		//todo test
+		//send event to app context
+		if (frameStartCallback != NULL)
+			swEventQueuePush(frameStartCallback, NULL);
 
-	/****************************************************************************
-	 *
-	 * NAME: extern_intr_handler
-	 *
-	 * DESCRIPTION:
-	 *
-	 * PARAMETERS:      Name            RW  Usage
-	 *  None.
-	 *
-	 * RETURNS:
-	 * 	None.
-	 *
-	 * NOTES:
-	 *  None.
-	 *
-	 ****************************************************************************/
-PRIVATE void extern_intr_handler()
-{
+	}
+	servoQueueIdx++;
+
+	if (servoQueueIdx >= maxServoQueueIdx)
+	{
+		servoQueueIdx = 0;
+
+		errorCounter++;
+		if (errorCounter >= 100)
+		{
+			errorCounter = 0;
+			packetsReceived = packetsCounter;
+			packetsCounter = 0;
+
+		}
+		//       vPrintf("z");
+	}
+	//   lat[servoQueueIdx]=latency;
+}
+
 #if(JENNIC_CHIP_FAMILY == JN514x)
 
+/****************************************************************************
+ *
+ * NAME: extern_intr_handler
+ *
+ * DESCRIPTION:
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  None.
+ *
+ * RETURNS:
+ * 	None.
+ *
+ * NOTES:
+ *  None.
+ *
+ ****************************************************************************/
+PRIVATE void extern_intr_handler(void)
+{
 	//enable tick intr
 
 	asm volatile("b.mfspr r11,r0,17;");
@@ -833,7 +853,6 @@ PRIVATE void extern_intr_handler()
 	//call std handler
 
 	asm volatile("b.ja 0xa1cc;");
-#endif
 }
 
 /****************************************************************************
@@ -852,9 +871,8 @@ PRIVATE void extern_intr_handler()
  *  None.
  *
  ****************************************************************************/
-PRIVATE void tick_handler()
+PRIVATE void tick_handler(void)
 {
-#if(JENNIC_CHIP_FAMILY == JN514x)
 	//temp fix until a more maintainable jennic solution appears
 
 	/*
@@ -938,5 +956,6 @@ PRIVATE void tick_handler()
 
 	//return to app context
 	asm volatile("bt.rfe;");
-#endif
 }
+
+#endif
