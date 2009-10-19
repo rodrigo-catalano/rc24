@@ -23,6 +23,7 @@ Copyright 2008 - 2009 © Alan Hopper
 #include <AppHardwareApi.h>
 
 #include "myrxs.h"
+#include "swEventQueue.h"
 #include "servopwm.h"
 #include "motorpwm.h"
 #include "nmeagps.h"

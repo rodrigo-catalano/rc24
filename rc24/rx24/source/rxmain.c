@@ -298,7 +298,6 @@ PUBLIC void AppColdStart(void)
 	{
 		// Don't use uart pins for servo op
 		// TODO - fix this
-		//vUART_Init(FALSE);
 
 		initPcComs(&pccoms, CONPC, 0, rxHandleRoutedMessage);
 
@@ -312,6 +311,10 @@ PUBLIC void AppColdStart(void)
 
 	// Initialise the clock
 	// TODO - fix this
+	/* the jn5148 defaults to 16MHz for the processor,
+	   it can be switched to 32Mhz however the servo driving
+	   code would need tweaking
+	   */
 	//bAHI_SetClockRate(3);
 
 	// Send init string to PC
@@ -348,9 +351,11 @@ PUBLIC void AppColdStart(void)
 		;
 
 	// Start the servo pwm generator
+	setFrameCallback(frameStartEvent);
 	startServoPwm();
 
 	// Enter the never ending main handler
+
 	while (1)
 	{
 		// Process any events
@@ -388,33 +393,35 @@ PUBLIC void AppWarmStart(void)
  *
  * NOTES:
  ****************************************************************************/
-PUBLIC void frameStartEvent(void* buff)
+void frameStartEvent(void* buff)
 {
-	// Called every 20ms
+	//called every 20ms
 	frameCounter++;
+	//binding check
+	//only do automatic bind request after 10secs to incase this
+	//was an unintended reboot in flight
+	//only do if not already communicating with a tx
 
-	/*
-	 * Binding check
-	 * Only do automatic bind request after 10secs to in case this
-	 * was an unintended reboot in flight
-	 * only do if not already communicating with a tx
-	 *
-	 */
-	if (frameCounter > 500 && frameCounter < 5000 &&
-		getHopMode() == hoppingRxStartup)
+	if (frameCounter > 500 && frameCounter < 5000 && getHopMode()
+			== hoppingRxStartup)
 	{
-		// TODO - test binding
+		// TODO - add binding button check and an option to disable auto binding
 		uint32 channel = 0;
 		eAppApiPlmeGet(PHY_PIB_ATTR_CURRENT_CHANNEL, &channel);
 		if (channel == 11)
 		{
-			uint8 packet[10];
-			packet[0] = 0;	//no route
-			packet[1] = 16;	//bind request
+			uint8 packet[14];
+			packet[0] = 0; //no high priority data
+			packet[1] = 0; //seq no
+			packet[2] = 0; //chunk no
+			packet[3] = 10; //length of message
+
+			packet[4] = 0;//no route
+			packet[5] = 16;//bind request
 
 			MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
-			memcpy(&packet[2], &macptr->u32L, sizeof(macptr->u32L));
+			memcpy(&packet[10], &macptr->u32L, sizeof(macptr->u32L));
 			memcpy(&packet[6], &macptr->u32H, sizeof(macptr->u32H));
 
 			vTransmitDataPacket(packet, sizeof(packet), TRUE);
@@ -681,17 +688,16 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 	if (sEndDeviceData.eState != E_STATE_ASSOCIATED)
 	{
 		// Check for bind acceptance
-		// TODO - fix comment, seems unconnected with code
-		if ((psFrame->au8Sdu[0] & 0x80) != 0)
-		{
-			// Routed packet, handle it
-			rxHandleRoutedMessage(&psFrame->au8Sdu[1],
-					psFrame->u8SduLength - 1, CONTX);
-		}
+		// Routed packet, handle it
+		rxHandleRoutedMessage(&psFrame->au8Sdu[1],
+				psFrame->u8SduLength - 1, CONTX);
+
 	}
 
 	// Only accept from bound tx
 	// TODO - the TX_ADDRESS_MODE stops the following code from being reached
+
+
 	if (TX_ADDRESS_MODE == 3 && (psFrame->sSrcAddr.uAddr.sExt.u32H != txMACh
 			|| psFrame->sSrcAddr.uAddr.sExt.u32L != txMACl))
 		return;
@@ -700,43 +706,20 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 	// TODO - Should this be merged with code above [1]
 	if (sEndDeviceData.eState != E_STATE_ASSOCIATED)
 	{
-		// Get the PAN ID from the frame and set it
-		sEndDeviceData.u16PanId = psFrame->sSrcAddr.u16PanId;
-		MAC_vPibSetPanId(s_pvMac, sEndDeviceData.u16PanId);
 
 		dbgPrintf("tx found \r\n");
-
-		// Set the short address
-		// TODO - should this be hard-coded?  Should the tx set this?
-		sEndDeviceData.u16Address = 1;
-		MAC_vPibSetShortAddr(s_pvMac, sEndDeviceData.u16Address);
 
 		// Update the association state
 		sEndDeviceData.eState = E_STATE_ASSOCIATED;
 
-		/*
-		 *  TODO - fix commented out code
-		 *
-		 MAC_vPibSetPromiscuousMode(s_pvMac, FALSE, FALSE);
-		 MAC_vPibSetPanId(s_pvMac, sEndDeviceData.u16PanId);
-		 MAC_vPibSetShortAddr(s_pvMac, sEndDeviceData.u16Address);
 
-		 vPrintf("h %d %d l %d %d \r\n",psFrame->sDstAddr.uAddr.sExt.u32H,
-		         macptr->u32H, psFrame->sDstAddr.uAddr.sExt.u32L, macptr->u32L);
-		 */
 
 		// Set the hopping mode
 		setHopMode(hoppingContinuous);
 	}
 
-	/*
-	 * TODO - Fix the commented out code
-	 *
-	 if (psFrame->sSrcAddr.uAddr.u16Short == COORDINATOR_ADR)
-	 {
-	 the same packet can be received many times if the ack was not received by the sender
-	 */
 
+	 //the same packet can be received many times if the ack was not received by the sender
 	// If the received packet seq. no. is different from the last one we have a new packet
 	if (psFrame->au8Sdu[0] != sEndDeviceData.u8RxPacketSeqNb)
 	{
@@ -959,50 +942,53 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 {
 	MAC_McpsReqRsp_s sMcpsReqRsp;
 
-	// Create frame transmission request
+	/* Create frame transmission request */
 	sMcpsReqRsp.u8Type = MAC_MCPS_REQ_DATA;
 	sMcpsReqRsp.u8ParamLength = sizeof(MAC_McpsReqData_s);
-
-	// Set handle so we can match confirmation to request
+	/* Set handle so we can match confirmation to request */
 	sMcpsReqRsp.uParam.sReqData.u8Handle = 1;
 
-	// Use short address for source
-	sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u8AddrMode = TX_ADDRESS_MODE;
+	MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
-	// TODO - fix commented out code, setting PanID ?
-	//sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = sCoordinatorData.u16PanId;
-	sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = 0xffff;
 
-	// TODO - subsequent code is unreachable due to definition of TX_ADDRESS_MODE
-	if (TX_ADDRESS_MODE == 3) //not sure if this is needed
-	{
-		MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
-		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32L
-				= macptr->u32L;
-		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H
-				= macptr->u32H;
-	}
-
-	// Not broadcasting the packet
 	if (broadcast != TRUE)
 	{
-		// Use long address for destination
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u8AddrMode = TX_ADDRESS_MODE;
+#if(TX_ADDRESS_MODE == 3)
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32L= macptr->u32L;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H= macptr->u32H;
+#endif
+
+		// use broadcast pan id
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = 0xffff;
+
+		/* Use long address (mac address )for destination */
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode
 				= RX_ADDRESS_MODE;
-
-		// TODO - fix hard-coded PanID
-		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u16PanId = 0xffff;//sCoordinatorData.u16PanId;
+		// use broardcast pan id for destination
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u16PanId = 0xffff;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32L = txMACl;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32H = txMACh;
 
-		// Frame requires ack but not security, indirect transmit or GTS
+		/* Frame requires ack but not security, indirect transmit or GTS */
 		sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = MAC_TX_OPTION_ACK;
 	}
 	else
 	{
-		// A broadcast message, set the destination address and the options
-		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode = 0;
+		//use long source address
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u8AddrMode = 3;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32L= macptr->u32L;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H= macptr->u32H;
+
+		//use broadcast short address for destination
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode = 2;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.u16Short = 0xffff;
 		sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = 0;
+		//use a fixed pan id known to all rc24 systems for binding
+		//could use the broadcast panid but this reduces the odds on getting
+		//responses from non rc24 systems
+		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId=PAN_ID;
+		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u16PanId=PAN_ID;
 	}
 
 	// Get a pointer to the output data buffer
@@ -1018,6 +1004,8 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 	// Copy the data packet to the data buffer
 	memcpy(&(pu8Payload[index]), pu8Data, u8Len);
 
+	index+=u8Len;//grrrrr :)
+
 	// Tack on the low priority data
 	// TODO - fix the magic number for the maxlen arg
 	index += appendLowPriorityData(&pu8Payload[index], 32);
@@ -1030,6 +1018,8 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 	MAC_McpsSyncCfm_s sMcpsSyncCfm;
 	vAppApiMcpsRequest(&sMcpsReqRsp, &sMcpsSyncCfm);
 }
+
+
 
 // Routed message handlers these can either relay messages along routes or handle them
 
@@ -1156,6 +1146,8 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			// TODO - no check for bind mode
 			memcpy(&txMACl, msgBody, sizeof(txMACl));
 			memcpy(&txMACh, msgBody + 4, sizeof(txMACh));
+
+			// TODO save binding to flash
 			break;
 		}
 
