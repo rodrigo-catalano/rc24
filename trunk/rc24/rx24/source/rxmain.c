@@ -103,35 +103,36 @@ void storeSettings(void);
 /****************************************************************************/
 /***        Local Variables                                               ***/
 /****************************************************************************/
-/* Handles from the MAC */
+
+// Handles from the MAC */
 PRIVATE void *s_pvMac;
 PRIVATE MAC_Pib_s *s_psMacPib;
-PRIVATE tsEndDeviceData sEndDeviceData;
 
+PRIVATE tsEndDeviceData sEndDeviceData;	// End device state store
+PRIVATE uint32 rxdpackets = 0;	// Global packet counter
+PRIVATE uint8 txLinkQuality = 0;	// Link quality from last message
+PRIVATE uint32 frameCounter = 0;	// Good for almost 3 years at 50/sec
+PRIVATE uint8 debugCon = CONPC;	// Where to send debug messages
+PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
+
+// TODO - make local to using function
+PRIVATE nmeaGpsData gpsData;	// Data from GPS device
+
+// TODO - not initialised
+PRIVATE uint8 returnPacketIdx;
+
+PRIVATE uint32 txMACh = 0;	// Tx MAC address high word
+PRIVATE uint32 txMACl = 0;	// Tx MAC address low word
+
+// TODO - only used in a function, move there?
+pcCom pccoms;
+
+// TODO - Unused??
 uint16 thop = 0;
 uint32 intstore;
-
-uint32 rxdpackets = 0;
 uint32 frameperiods = 0;
 uint32 resyncs = 0;
 uint32 reportNo = 0;
-uint8 txLinkQuality = 0;
-
-uint32 frameCounter = 0;//good for almost 3 years at 50/sec
-
-//where to send debug messages
-uint8 debugCon = CONPC;
-
-//store for received channel data
-uint16 rxDemands[20];
-nmeaGpsData gpsData;
-
-uint8 returnPacketIdx;
-
-uint32 txMACh = 0;
-uint32 txMACl = 0;
-
-pcCom pccoms;
 
 
 /****************************************************************************/
@@ -140,9 +141,10 @@ pcCom pccoms;
 
 void dbgPrintf(const char *fmt, ...)
 {
-	//send as routed message
-	//todo make route a setable parameter so connected devices
-	//can ask for debug messages
+	// Send as routed message
+	// TODO make route a setable parameter so connected devices
+	// can ask for debug messages
+	// TODO - Fix magic numbers
 	char buf[196];
 	buf[0] = 0;
 	buf[1] = 0xff;
@@ -297,10 +299,7 @@ PUBLIC void AppColdStart(void)
 	if (debugCon == CONPC)
 	{
 		// Don't use uart pins for servo op
-		// TODO - fix this
-
 		initPcComs(&pccoms, CONPC, 0, rxHandleRoutedMessage);
-
 		vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
 	}
 
@@ -395,32 +394,35 @@ PUBLIC void AppWarmStart(void)
  ****************************************************************************/
 void frameStartEvent(void* buff)
 {
-	//called every 20ms
+	// Called every frame, currently 20ms
 	frameCounter++;
-	//binding check
-	//only do automatic bind request after 10secs to incase this
-	//was an unintended reboot in flight
-	//only do if not already communicating with a tx
 
-	if (frameCounter > 500 && frameCounter < 5000 && getHopMode()
-			== hoppingRxStartup)
+	// Binding check
+	// Only do automatic bind request after 10secs incase this
+	// was an unintended reboot in flight.
+	// Only do if not already communicating with a tx
+
+	// TODO - Explain
+	if ((frameCounter > 500 && frameCounter < 5000) &&
+		getHopMode() == hoppingRxStartup)
 	{
 		// TODO - add binding button check and an option to disable auto binding
 		uint32 channel = 0;
 		eAppApiPlmeGet(PHY_PIB_ATTR_CURRENT_CHANNEL, &channel);
 		if (channel == 11)
 		{
+			// TODO - Get rid of magic numbers
 			uint8 packet[14];
 			packet[0] = 0; //no high priority data
 			packet[1] = 0; //seq no
 			packet[2] = 0; //chunk no
 			packet[3] = 10; //length of message
-
-			packet[4] = 0;//no route
-			packet[5] = 16;//bind request
+			packet[4] = 0; //no route
+			packet[5] = 16; //bind request
 
 			MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
+			// TODO - can't we just memcpy the whole thing in one call?
 			memcpy(&packet[10], &macptr->u32L, sizeof(macptr->u32L));
 			memcpy(&packet[6], &macptr->u32H, sizeof(macptr->u32H));
 
@@ -706,20 +708,16 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 	// TODO - Should this be merged with code above [1]
 	if (sEndDeviceData.eState != E_STATE_ASSOCIATED)
 	{
-
 		dbgPrintf("tx found \r\n");
 
 		// Update the association state
 		sEndDeviceData.eState = E_STATE_ASSOCIATED;
 
-
-
 		// Set the hopping mode
 		setHopMode(hoppingContinuous);
 	}
 
-
-	 //the same packet can be received many times if the ack was not received by the sender
+	//the same packet can be received many times if the ack was not received by the sender
 	// If the received packet seq. no. is different from the last one we have a new packet
 	if (psFrame->au8Sdu[0] != sEndDeviceData.u8RxPacketSeqNb)
 	{
@@ -765,9 +763,8 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		vProcessReceivedDataPacket(&psFrame->au8Sdu[3], (psFrame->u8SduLength)
 				- 3);
 
-		// Ssend some data back
+		// Send some data back
 		// should check there is time to do this and limit retries
-
 
 		// Declare the return packet data and default size
 		uint8 au8Packet[6];
@@ -942,14 +939,14 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 {
 	MAC_McpsReqRsp_s sMcpsReqRsp;
 
-	/* Create frame transmission request */
+	// Create frame transmission request
 	sMcpsReqRsp.u8Type = MAC_MCPS_REQ_DATA;
 	sMcpsReqRsp.u8ParamLength = sizeof(MAC_McpsReqData_s);
-	/* Set handle so we can match confirmation to request */
+
+	// Set handle so we can match confirmation to request
 	sMcpsReqRsp.uParam.sReqData.u8Handle = 1;
 
 	MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
-
 
 	if (broadcast != TRUE)
 	{
@@ -959,34 +956,35 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H= macptr->u32H;
 #endif
 
-		// use broadcast pan id
+		// Use broadcast pan id
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId = 0xffff;
 
-		/* Use long address (mac address )for destination */
+		// Use long address (mac address) for destination
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode
 				= RX_ADDRESS_MODE;
-		// use broardcast pan id for destination
+		// Use broadcast pan id for destination
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u16PanId = 0xffff;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32L = txMACl;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.sExt.u32H = txMACh;
 
-		/* Frame requires ack but not security, indirect transmit or GTS */
+		// Frame requires ack but not security, indirect transmit or GTS
 		sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = MAC_TX_OPTION_ACK;
 	}
 	else
 	{
-		//use long source address
+		// Use long source address
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u8AddrMode = 3;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32L= macptr->u32L;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H= macptr->u32H;
 
-		//use broadcast short address for destination
+		// Use broadcast short address for destination
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u8AddrMode = 2;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.uAddr.u16Short = 0xffff;
 		sMcpsReqRsp.uParam.sReqData.sFrame.u8TxOptions = 0;
-		//use a fixed pan id known to all rc24 systems for binding
-		//could use the broadcast panid but this reduces the odds on getting
-		//responses from non rc24 systems
+
+		// Use a fixed pan id known to all rc24 systems for binding
+		// Could use the broadcast panid but this reduces the odds on getting
+		// responses from non rc24 systems
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.u16PanId=PAN_ID;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sDstAddr.u16PanId=PAN_ID;
 	}
@@ -1003,8 +1001,7 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 
 	// Copy the data packet to the data buffer
 	memcpy(&(pu8Payload[index]), pu8Data, u8Len);
-
-	index+=u8Len;//grrrrr :)
+	index += u8Len;
 
 	// Tack on the low priority data
 	// TODO - fix the magic number for the maxlen arg
@@ -1018,8 +1015,6 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 	MAC_McpsSyncCfm_s sMcpsSyncCfm;
 	vAppApiMcpsRequest(&sMcpsReqRsp, &sMcpsSyncCfm);
 }
-
-
 
 // Routed message handlers these can either relay messages along routes or handle them
 
