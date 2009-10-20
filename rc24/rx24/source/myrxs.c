@@ -161,6 +161,7 @@ void initTxMac(uint32* machigh, uint32* maclow)
 {
 	// Enter the mac address of your transmitter here
 	// TODO - Do we *have* to hard-code the TX MAC?
+	// will disappear once binding code is 100%
 	*maclow = 0x000a5f1f;
 	*machigh = 0x00158d00;
 }
@@ -183,6 +184,9 @@ void initTxMac(uint32* machigh, uint32* maclow)
 void initInputs(void)
 {
 	// TODO - allow conditional compilation
+	// or selection from flash settings
+	// or make this file a template for people to put their private implementations in
+
 	// comment out if no gps connected
 	//initNmeaGps(E_AHI_UART_0,E_AHI_UART_RATE_38400);
 }
@@ -288,11 +292,12 @@ void updateOutputs(uint16* channelData)
 		{
 			// Set a servo pwm output
 
-			// Convert the demand to a pulse width in uS
+			// Convert the demand to a pulse width in 1/16 of a uS
 			uint32 u32Demand = channelData[i] * 16000 / 4096 + 16000;
 
 			// Limit the pulse width to 1-2mS
 			// TODO - allow travel over limits, e.g. 0.9 - 2.1
+			// yep but requires careful checking of timing in servopwm.c
 			if (u32Demand > 2000 * 16)
 				u32Demand = 2000 * 16;
 			if(u32Demand < 1000 * 16)
