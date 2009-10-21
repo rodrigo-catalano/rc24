@@ -49,6 +49,7 @@
 #include "routedmessage.h"
 #include "codeupdate.h"
 #include "radiocoms.h"
+#include "hwutils.h"
 
 #define HIPOWERMODULE
 
@@ -92,7 +93,7 @@ PRIVATE void
 		vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr);
 
 PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len);
-PRIVATE uint16 u16ReadADC(uint8 channel);
+PRIVATE uint16 u16ReadADCAverage(uint8 channel);
 PRIVATE void vCreateAndSendFrame(void);
 
 PRIVATE void GetNextChannel(void);
@@ -1555,7 +1556,7 @@ void txHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 
 				*replyBody++ = 17;//bind response id
 				//send tx mac
-				MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+				module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
 				memcpy(replyBody, &macptr->u32L, 4);
 				memcpy(replyBody + 4, &macptr->u32H, 4);
@@ -1909,7 +1910,7 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr)
 	//   sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.u16Short = COORDINATOR_ADR;
 	if (TX_ADDRESS_MODE == 3)
 	{
-		MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+		module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32L
 				= macptr->u32L;
 		sMcpsReqRsp.uParam.sReqData.sFrame.sSrcAddr.uAddr.sExt.u32H
@@ -1948,7 +1949,7 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr)
 
 }
 
-PRIVATE uint16 u16ReadADC(uint8 channel)
+PRIVATE uint16 u16ReadADCAverage(uint8 channel)
 {
 
 	vAHI_AdcEnable(E_AHI_ADC_SINGLE_SHOT, E_AHI_AP_INPUT_RANGE_2, channel);
@@ -2058,15 +2059,15 @@ PRIVATE void vCreateAndSendFrame(void)
 	case ADINPUT:
 	{
 		//3755=3.3v
-		int ref = u16ReadADC(E_AHI_ADC_SRC_VOLT);
+		int ref = u16ReadADCAverage(E_AHI_ADC_SRC_VOLT);
 
-		txInputs[0] = ((u16ReadADC(0) - 2048) * 3755 / ref - joystickOffset[0])
+		txInputs[0] = ((u16ReadADCAverage(0) - 2048) * 3755 / ref - joystickOffset[0])
 				* 2048 / joystickGain[0];
-		txInputs[1] = ((u16ReadADC(1) - 2048) * 3755 / ref - joystickOffset[1])
+		txInputs[1] = ((u16ReadADCAverage(1) - 2048) * 3755 / ref - joystickOffset[1])
 				* 2048 / joystickGain[1];
-		txInputs[2] = ((u16ReadADC(2) - 2048) * 3755 / ref - joystickOffset[2])
+		txInputs[2] = ((u16ReadADCAverage(2) - 2048) * 3755 / ref - joystickOffset[2])
 				* 2048 / joystickGain[2];
-		txInputs[3] = ((u16ReadADC(3) - 2048) * 3755 / ref - joystickOffset[3])
+		txInputs[3] = ((u16ReadADCAverage(3) - 2048) * 3755 / ref - joystickOffset[3])
 				* 2048 / joystickGain[3];
 		break;
 	}

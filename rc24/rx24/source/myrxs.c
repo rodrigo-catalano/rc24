@@ -141,30 +141,6 @@ opChannel gps[20] = {
 // The output mapping in use
 PRIVATE opChannel* outputMapping;
 
-/****************************************************************************
- *
- * NAME: initTxMac
- *
- * DESCRIPTION: Set the Tx MAC in use
- *
- * PARAMETERS:      Name            RW  Usage
- *					machigh			W	The Tx MAC high word
- *					maclow			W	The Tx MAX low word
- *
- * RETURNS:
- *  None.
- *
- * NOTES:
- *  None.
- ****************************************************************************/
-void initTxMac(uint32* machigh, uint32* maclow)
-{
-	// Enter the mac address of your transmitter here
-	// TODO - Do we *have* to hard-code the TX MAC?
-	// will disappear once binding code is 100%
-	*maclow = 0x000a5f1f;
-	*machigh = 0x00158d00;
-}
 
 /****************************************************************************
  *

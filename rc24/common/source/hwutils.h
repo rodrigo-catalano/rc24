@@ -23,3 +23,12 @@ void cycleDelay(uint32 del);
 uint16 u16ReadADC(uint8 channel);
 uint32 flashSectorSize(void);
 uint32 flashNumSectors(void);
+
+//the module mac address is stored in ram in the reverse order to that defned in MAC_ExtAddr_s
+typedef struct
+{
+
+    uint32 u32H;  /**< High word */
+    uint32 u32L;  /**< Low word */
+
+} module_MAC_ExtAddr_s;
