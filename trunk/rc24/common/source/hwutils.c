@@ -108,3 +108,4 @@ uint32 flashNumSectors()
 	return 4;
 #endif
 }
+

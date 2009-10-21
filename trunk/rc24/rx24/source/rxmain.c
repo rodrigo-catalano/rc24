@@ -118,8 +118,8 @@ PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
 // TODO - make local to using function
 PRIVATE nmeaGpsData gpsData;	// Data from GPS device
 
-// TODO - not initialised
-PRIVATE uint8 returnPacketIdx;
+
+PRIVATE uint8 returnPacketIdx=0;
 
 PRIVATE uint32 txMACh = 0;	// Tx MAC address high word
 PRIVATE uint32 txMACl = 0;	// Tx MAC address low word
@@ -156,6 +156,10 @@ void dbgPrintf(const char *fmt, ...)
 	buf[2] = ret;
 	rxSendRoutedMessage((uint8*) buf, ret + 3, debugCon);
 }
+// Exception handling
+// TODO put in common file, remove debug stuff and try to report exception on restart
+// on the JN5148 the pulse counter values are preserved across reset so can be used to
+// send messages from the grave. There may be other ways.
 
 // Exception handler function addresses
 #if (JENNIC_CHIP_FAMILY == JN514x)
@@ -290,12 +294,10 @@ PUBLIC void AppColdStart(void)
 	// TODO - move to settings?
 	setHopMode(hoppingRxStartup);
 
-	// Load the receiver settings
-	// TODO - fix this
-	//loadSettings();
 
 	// Initialise the system
 	vInitSystem();
+
 	if (debugCon == CONPC)
 	{
 		// Don't use uart pins for servo op
@@ -308,6 +310,7 @@ PUBLIC void AppColdStart(void)
 	UNALIGNED_ACCESS = (uint32) vUnalignedAccessHandler;
 	ILLEGAL_INSTRUCTION = (uint32) vIllegalInstructionHandler;
 
+
 	// Initialise the clock
 	// TODO - fix this
 	/* the jn5148 defaults to 16MHz for the processor,
@@ -319,18 +322,21 @@ PUBLIC void AppColdStart(void)
 	// Send init string to PC
 	dbgPrintf("rx24 2.10 ");
 
+	// Load the receiver settings
+	loadSettings();
+
 	// Set handler for incoming data
 	setRadioDataCallback(rxHandleRoutedMessage, CONTX);
 
 	// Retrieve the MAC address and log it to the PC
-	MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
-	dbgPrintf("mac %x %x ", macptr->u32H, macptr->u32L);
+	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	dbgPrintf("\r\nmac %x %x ", macptr->u32H, macptr->u32L);
+	// log bound tx mac to pc
+	dbgPrintf("\r\nbound tx mac %x %x ",txMACh ,txMACl );
 
 	// Use dio 16 for test sync pulse
 	vAHI_DioSetDirection(0, 1 << 16);
 
-	// Initialise the TX MAc ??
-	initTxMac(&txMACh, &txMACl);
 
 	// Set demands to impossible values
 	// TODO - fix magic numbers grrr
@@ -420,11 +426,11 @@ void frameStartEvent(void* buff)
 			packet[4] = 0; //no route
 			packet[5] = 16; //bind request
 
-			MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+			module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
 			// TODO - can't we just memcpy the whole thing in one call?
-			memcpy(&packet[10], &macptr->u32L, sizeof(macptr->u32L));
-			memcpy(&packet[6], &macptr->u32H, sizeof(macptr->u32H));
+			memcpy(&packet[6], &macptr->u32L, sizeof(macptr->u32L));
+			memcpy(&packet[10], &macptr->u32H, sizeof(macptr->u32H));
 
 			vTransmitDataPacket(packet, sizeof(packet), TRUE);
 		}
@@ -470,7 +476,7 @@ PRIVATE void vInitSystem(void)
 	// sometimes useful during development
 	// all messages are passed up from lower levels
 	// MAC_vPibSetPromiscuousMode(s_pvMac, TRUE, FALSE);
-	MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
 	//moved to after u32AHI_Init() for jn5148
 	randomizeHopSequence(((uint32) macptr->u32H) ^ ((uint32) macptr->u32L));
@@ -683,17 +689,19 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 	// Get the mac address
 	// TODO - pvAppApiGetMacAddrLocation not in docs
 	// TODO - macptr not used as code is commented out
-	MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
 	// If not associated ??
 	// TODO - should this be merged with similar code below [1]
 	if (sEndDeviceData.eState != E_STATE_ASSOCIATED)
 	{
 		// Check for bind acceptance
-		// Routed packet, handle it
-		rxHandleRoutedMessage(&psFrame->au8Sdu[1],
-				psFrame->u8SduLength - 1, CONTX);
-
+		// if routed packet, handle it
+		if(psFrame->u8SduLength>11)
+		{
+			handleLowPriorityData(&psFrame->au8Sdu[11], psFrame->u8SduLength - 11);
+			return;
+		}
 	}
 
 	// Only accept from bound tx
@@ -946,7 +954,7 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 	// Set handle so we can match confirmation to request
 	sMcpsReqRsp.uParam.sReqData.u8Handle = 1;
 
-	MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
 	if (broadcast != TRUE)
 	{
@@ -1094,10 +1102,13 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 {
 	// TODO - make a definition for the buffer length
 	uint8 replyBuf[256];
+	dbgPrintf("#");
 
 	// See if packet has reached its destination
 	if (rmIsMessageForMe(msg) == TRUE)
 	{
+		dbgPrintf("@");
+
 		// Message is for us - unwrap the payload
 		uint8* msgBody;
 		uint8 msgLen;
@@ -1137,12 +1148,16 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 
 		case 17: // Bind response
 		{
-			// If in bind mode set txmac
-			// TODO - no check for bind mode
-			memcpy(&txMACl, msgBody, sizeof(txMACl));
-			memcpy(&txMACh, msgBody + 4, sizeof(txMACh));
+			// If in bind mode set tx mac
 
-			// TODO save binding to flash
+			if(sEndDeviceData.eState != E_STATE_ASSOCIATED)
+			{
+				memcpy(&txMACl, msgBody+1, sizeof(txMACl));
+				memcpy(&txMACh, msgBody + 5, sizeof(txMACh));
+				//store binding
+				storeSettings();
+				dbgPrintf("Rx Bound");
+			}
 			break;
 		}
 
@@ -1243,8 +1258,10 @@ void loadSettings()
 	int tag;
 	if (getOldStore(&s) == TRUE)
 	{
+		dbgPrintf("store found");
 		while ((tag = storeGetSection(&s, &section)) > 0)
 		{
+			dbgPrintf(" t%d",tag);
 			switch (tag)
 			{
 			case STORERXBINDING_MACL:

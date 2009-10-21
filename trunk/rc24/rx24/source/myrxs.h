@@ -41,9 +41,6 @@ typedef struct
 /***        Exported Function Prototypes                                  ***/
 /****************************************************************************/
 
-// Initialise the Tx MAC address
-void initTxMac(uint32* machigh, uint32* maclow);
-
 // Initialise the receiver inputs
 void initInputs(void);
 
