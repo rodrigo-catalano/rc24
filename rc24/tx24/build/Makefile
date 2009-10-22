@@ -102,6 +102,7 @@ APPSRC += tsc2003.c
 APPSRC += wii.c
 APPSRC += hwutils.c
 APPSRC += codeUpdate.c
+APPSRC += gui_walnut.c
 
 APPSRC += AppQueueApi.c
 
