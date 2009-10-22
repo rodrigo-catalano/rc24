@@ -21,6 +21,14 @@ Copyright 2008 - 2009 © Alan Hopper
 #define CONRX 0
 #define CONPC 1
 
+#define rxspeedidx 7
+#define rxheightidx 8
+#define rxtrackidx 9
+#define rxtimeidx 10
+#define rxlatidx 11
+#define rxlongidx 12
+
+
 typedef enum
 {
     E_STATE_IDLE,
@@ -29,7 +37,16 @@ typedef enum
     E_STATE_COORDINATOR_STARTED,
 }teState;
 
+typedef struct
+{
+
+} txState;
+
 void setTxMode(teState state);
 void displayClick(uint8 x, uint8 y);
 void txHandleRoutedMessage(uint8* msg,uint8 len,uint8 fromCon);
+void sleep(void);
+void nextModel(void);
+void copyModel(void);
+void setBacklight(uint8 bri);
 
