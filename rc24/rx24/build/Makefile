@@ -98,7 +98,7 @@ APPSRC += pcComs.c
 APPSRC += hwutils.c
 APPSRC += codeUpdate.c
 APPSRC += radiocoms.c
-
+APPSRC += commonCommands.c
 
 APPSRC += AppQueueApi.c
 APPSRC += Printf.c

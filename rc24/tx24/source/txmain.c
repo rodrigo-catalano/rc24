@@ -52,6 +52,7 @@
 #include "hwutils.h"
 
 #include "gui_walnut.h"
+#include "commonCommands.h"
 
 #define HIPOWERMODULE
 
@@ -233,6 +234,23 @@ pcCom pccoms;
 
 uint32 dbgmsgtimestart;
 uint32 dbgmsgtimeend;
+
+uint8 testparam=3;
+int testparam2=6543;
+//list of parameters that can be read or set by connected devices
+//either by direct access to variable or through getters and setters
+//their command id is defined by position in the list
+ccParameter exposedParameters[]=
+{
+		{"testuint8",CC_UINT8,&testparam},
+		{"testint",CC_INT32,&testparam2},
+		{"TX Demands",CC_UINT16_ARRAY,txInputs}
+};
+ccParameterList parameterList=
+{
+		exposedParameters,
+		sizeof(exposedParameters)/sizeof(exposedParameters[0])
+};
 
 #if (JENNIC_CHIP_FAMILY == JN514x)
 #define BUS_ERROR *((volatile uint32 *)(0x4000000))
@@ -917,10 +935,15 @@ void txHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			break;
 		}
 
-		case 2: //enumerate all methods
-		{
+		case CMD_ENUM_GROUP :
+			replyLen=ccEnumGroupCommand(&parameterList, msgBody, replyBody);
 			break;
-		}
+		case CMD_SET_PARAM:
+			replyLen=ccSetParameter(&parameterList, msgBody, replyBody);
+			break;
+		case CMD_GET_PARAM:
+			replyLen=ccGetParameter(&parameterList, msgBody, replyBody);
+			break;
 		case 16: //bind request -
 		{
 			//if in bind mode
@@ -956,6 +979,9 @@ void txHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			break;
 		case 0x94: //commit upload
 			replyLen = commitCodeUpdate(msgBody, replyBody);
+			break;
+		case 0x96: // Reset
+			vAHI_SwReset();
 			break;
 		case 0xa0: //virtual click on lcd display
 			displayClick(msgBody[1], msgBody[2]);
