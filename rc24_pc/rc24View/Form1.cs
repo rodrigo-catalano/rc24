@@ -72,6 +72,11 @@ namespace Serial
         routedNode pcNode = new routedNode("PC");
         routedNode activeNode;
 
+
+        //      Flobbster.Windows.Forms.PropertyTable nodeParameterList = new Flobbster.Windows.Forms.PropertyTable();
+        Flobbster.Windows.Forms.PropertyBag nodeParameterList = new Flobbster.Windows.Forms.PropertyBag();
+
+
         public Form1()
         {
             InitializeComponent();
@@ -95,6 +100,35 @@ namespace Serial
 
             lcd1.MouseClick += new MouseEventHandler(lcd1_MouseClick);
 
+            nodeParameterList.GetValue += new Flobbster.Windows.Forms.PropertySpecEventHandler(nodeParameterList_GetValue);
+
+            nodeParameterList.SetValue += new Flobbster.Windows.Forms.PropertySpecEventHandler(nodeParameterList_SetValue);
+            propertyGrid1.SelectedObject = nodeParameterList;
+
+        }
+
+        void nodeParameterList_SetValue(object sender, Flobbster.Windows.Forms.PropertySpecEventArgs e)
+        {
+            string paramName = e.Property.Name;
+
+            ccParameter param = activeNode.properties[paramName];
+            param.Value = e.Value;
+            byte[] cmd=param.buildSetCmd();
+
+            if (cmd != null)
+            {
+                routedMessage msgValSet = new routedMessage(activeNode.address, cmd);
+                SendRoutedMessage(msgValSet, SERIALCON);
+            }
+
+
+        }
+
+        void nodeParameterList_GetValue(object sender, Flobbster.Windows.Forms.PropertySpecEventArgs e)
+        {
+            //e.Property.Name
+            e.Value = activeNode.properties[e.Property.Name].Value;
+
         }
 
         void lcd1_MouseClick(object sender, MouseEventArgs e)
@@ -103,8 +137,8 @@ namespace Serial
             cmd[0] = 0xa0;
             cmd[1] = (byte)(e.X / 2);
             cmd[2] = (byte)(e.Y / 2);
-            routedMessage msg = new routedMessage(route.DirectLink, cmd);        
-            SendRoutedMessage(msg,SERIALCON);
+            routedMessage msg = new routedMessage(route.DirectLink, cmd);
+            SendRoutedMessage(msg, SERIALCON);
         }
 
 
@@ -412,6 +446,34 @@ namespace Serial
                             SetText(msg.readString());
                             break;
                         }
+                    case 0x0a://common commands
+                        {
+                            handleCommonCommand(msg, fromCon);
+                            break;
+                        }
+                    case 0x04://get parameter value response
+                        {
+                            msg.readByte();
+                            byte paramIdx = msg.readByte();
+                            //depending on type read value
+
+                          //  byte val = msg.readByte();
+
+                            activeNode.getParamByIdx((int)paramIdx).parseValue(msg);
+
+
+                            //    nodeParameterList[NodeParameterNames[paramIdx]] = val;
+
+                            propertyGrid1.Refresh();
+
+                            if (activeNode.parameterCount > activeNode.properties.Count)
+                            {
+                                //get next parameter
+                                routedMessage msgGetMeta = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x6, (byte)activeNode.properties.Count });
+                                SendRoutedMessage(msgGetMeta, SERIALCON);
+                            }
+                            break;
+                        }
                 }
             }
             else
@@ -470,14 +532,19 @@ namespace Serial
                 case "TX":
                     buttonUploadCode.Visible = true;
                     buttonResetNode.Visible = true;
+                    getNodeParameters();
                     break;
                 case "RX":
                     buttonUploadCode.Visible = true;
                     buttonResetNode.Visible = true;
+                    getNodeParameters();
                     break;
                 default:
                     buttonUploadCode.Visible = false;
                     buttonResetNode.Visible = false;
+                    nodeParameterList.Properties.Clear();
+                    activeNode.properties.Clear();
+                    propertyGrid1.Refresh();
                     break;
             }
         }
@@ -505,6 +572,56 @@ namespace Serial
         {
             routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x96 });
             SendRoutedMessage(msg, SERIALCON);
+        }
+        private void getNodeParameters()
+        {
+            nodeParameterList.Properties.Clear();
+            activeNode.properties.Clear();
+
+            propertyGrid1.Refresh();
+
+            //send get parameter copunt command
+            routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x4, 0x00 });
+            SendRoutedMessage(msg, SERIALCON);
+
+        }
+        private void handleCommonCommand(routedMessage msg, byte fromCon)
+        {
+            msg.readByte();
+            byte cmd = msg.readByte();
+            switch (cmd)
+            {
+                case 5: //parameter count
+                    byte count = msg.readByte();
+                    activeNode.parameterCount = count;
+                    if (count > 0)
+                    {
+                        routedMessage msgGetMeta = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x6, 0x00 });
+                        SendRoutedMessage(msgGetMeta, SERIALCON);
+                    }
+                    break;
+                case 7: //parameter metadata
+                    byte pIdx = msg.readByte();
+                    string pName = msg.readString();
+                    byte pType = msg.readByte();
+
+                    ccParameter property = new ccParameter(pIdx, pName, pType);
+                    activeNode.properties.Add(pName, property);
+
+                    //bind to property editor
+                    Flobbster.Windows.Forms.PropertySpec p =
+                        new Flobbster.Windows.Forms.PropertySpec(pName, property.type, "Parameters");
+                    nodeParameterList.Properties.Add(p);
+
+                    propertyGrid1.Refresh();
+
+                    //get value
+                    routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx });
+                    SendRoutedMessage(msgValReq, SERIALCON);
+
+
+                    break;
+            }
         }
     }
 }
