@@ -43,6 +43,7 @@ namespace Serial
             this.labelNodeName = new System.Windows.Forms.Label();
             this.buttonResetNode = new System.Windows.Forms.Button();
             this.buttonUploadCode = new System.Windows.Forms.Button();
+            this.propertyGrid1 = new System.Windows.Forms.PropertyGrid();
             this.lcd1 = new Serial.lcd();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -144,11 +145,12 @@ namespace Serial
             // splitContainer1.Panel2
             // 
             this.splitContainer1.Panel2.BackColor = System.Drawing.SystemColors.ControlLightLight;
+            this.splitContainer1.Panel2.Controls.Add(this.propertyGrid1);
             this.splitContainer1.Panel2.Controls.Add(this.labelNodeName);
             this.splitContainer1.Panel2.Controls.Add(this.buttonResetNode);
             this.splitContainer1.Panel2.Controls.Add(this.buttonUploadCode);
-            this.splitContainer1.Size = new System.Drawing.Size(583, 365);
-            this.splitContainer1.SplitterDistance = 194;
+            this.splitContainer1.Size = new System.Drawing.Size(599, 365);
+            this.splitContainer1.SplitterDistance = 199;
             this.splitContainer1.TabIndex = 16;
             // 
             // treeView1
@@ -156,7 +158,7 @@ namespace Serial
             this.treeView1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.treeView1.Location = new System.Drawing.Point(0, 0);
             this.treeView1.Name = "treeView1";
-            this.treeView1.Size = new System.Drawing.Size(194, 365);
+            this.treeView1.Size = new System.Drawing.Size(199, 365);
             this.treeView1.TabIndex = 0;
             this.treeView1.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
             // 
@@ -171,9 +173,9 @@ namespace Serial
             // 
             // buttonResetNode
             // 
-            this.buttonResetNode.Location = new System.Drawing.Point(14, 78);
+            this.buttonResetNode.Location = new System.Drawing.Point(262, 14);
             this.buttonResetNode.Name = "buttonResetNode";
-            this.buttonResetNode.Size = new System.Drawing.Size(134, 23);
+            this.buttonResetNode.Size = new System.Drawing.Size(104, 23);
             this.buttonResetNode.TabIndex = 1;
             this.buttonResetNode.Text = "Reset Node";
             this.buttonResetNode.UseVisualStyleBackColor = true;
@@ -182,14 +184,21 @@ namespace Serial
             // 
             // buttonUploadCode
             // 
-            this.buttonUploadCode.Location = new System.Drawing.Point(14, 49);
+            this.buttonUploadCode.Location = new System.Drawing.Point(146, 14);
             this.buttonUploadCode.Name = "buttonUploadCode";
-            this.buttonUploadCode.Size = new System.Drawing.Size(134, 23);
+            this.buttonUploadCode.Size = new System.Drawing.Size(110, 23);
             this.buttonUploadCode.TabIndex = 0;
             this.buttonUploadCode.Text = "Update Code";
             this.buttonUploadCode.UseVisualStyleBackColor = true;
             this.buttonUploadCode.Visible = false;
             this.buttonUploadCode.Click += new System.EventHandler(this.buttonUploadCode_Click);
+            // 
+            // propertyGrid1
+            // 
+            this.propertyGrid1.Location = new System.Drawing.Point(3, 46);
+            this.propertyGrid1.Name = "propertyGrid1";
+            this.propertyGrid1.Size = new System.Drawing.Size(390, 319);
+            this.propertyGrid1.TabIndex = 4;
             // 
             // lcd1
             // 
@@ -244,6 +253,7 @@ namespace Serial
         private System.Windows.Forms.Label labelNodeName;
         private System.Windows.Forms.Button buttonResetNode;
         private System.Windows.Forms.Button buttonUploadCode;
+        private System.Windows.Forms.PropertyGrid propertyGrid1;
     }
 }
 

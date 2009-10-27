@@ -71,7 +71,15 @@ namespace rc24
         {
             return _command[_readIdx++];
         }
-
+        public int readInt32()
+        {
+            return (_command[_readIdx++] << 24) + (_command[_readIdx++] << 16)
+                +(_command[_readIdx++] << 8)+(_command[_readIdx++] );
+        }
+        public UInt16 readInt16()
+        {
+            return (UInt16)((_command[_readIdx++] << 8) + (_command[_readIdx++]));
+        }
         public int bytesRemaining()
         {
             return _command.Count - _readIdx;

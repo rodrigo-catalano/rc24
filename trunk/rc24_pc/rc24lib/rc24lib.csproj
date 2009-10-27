@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ccParameter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="route.cs" />
     <Compile Include="routedMessage.cs" />

@@ -28,10 +28,12 @@ namespace rc24
     {
         private route _route;
         public string name;
+        public int parameterCount = 0;
 
         public Dictionary<byte,routedNode> children=new Dictionary<byte,routedNode>();
         //interfaces
         //properties
+        public Dictionary<string, ccParameter> properties = new Dictionary<string, ccParameter>();
         public routedNode(string Name)
         {
             name = Name;
@@ -61,5 +63,13 @@ namespace rc24
             else return null;
         }
          */ 
+        public ccParameter getParamByIdx(int i)
+        {
+            foreach(ccParameter p in properties.Values)
+            {
+                if (p.Index == i) return p;
+            }
+            return null;
+        }
     }
 }
