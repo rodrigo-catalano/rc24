@@ -39,6 +39,7 @@
 #include "hwutils.h"
 #include "codeupdate.h"
 #include "radiocoms.h"
+#include "commonCommands.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -134,6 +135,22 @@ uint32 frameperiods = 0;
 uint32 resyncs = 0;
 uint32 reportNo = 0;
 
+uint8 testparam=27;
+int testparam2=2452;
+//list of parameters that can be read or set by connected devices
+//either by direct access to variable or through getters and setters
+//their command id is defined by position in the list
+ccParameter exposedParameters[]=
+{
+		{"testuint8",CC_UINT8,&testparam},
+		{"testint",CC_INT32,&testparam2},
+		{"RX Demands",CC_UINT16_ARRAY,rxDemands}
+};
+ccParameterList parameterList=
+{
+		exposedParameters,
+		sizeof(exposedParameters)/sizeof(exposedParameters[0])
+};
 
 /****************************************************************************/
 /***        Exported Functions                                            ***/
@@ -1102,12 +1119,10 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 {
 	// TODO - make a definition for the buffer length
 	uint8 replyBuf[256];
-	dbgPrintf("#");
 
 	// See if packet has reached its destination
 	if (rmIsMessageForMe(msg) == TRUE)
 	{
-		dbgPrintf("@");
 
 		// Message is for us - unwrap the payload
 		uint8* msgBody;
@@ -1139,13 +1154,15 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			replyLen = 5;
 			break;
 		}
-
-		case 2: // Enumerate all methods
-		{
-			// TODO - Presume some code goes here
+		case CMD_ENUM_GROUP :
+			replyLen=ccEnumGroupCommand(&parameterList, msgBody, replyBody);
 			break;
-		}
-
+		case CMD_SET_PARAM:
+			replyLen=ccSetParameter(&parameterList, msgBody, replyBody);
+			break;
+		case CMD_GET_PARAM:
+			replyLen=ccGetParameter(&parameterList, msgBody, replyBody);
+			break;
 		case 17: // Bind response
 		{
 			// If in bind mode set tx mac

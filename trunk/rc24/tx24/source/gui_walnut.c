@@ -35,7 +35,6 @@
 
 #include "txmain.h"
 
-
 #include "config.h"
 #include "ps2.h"
 #include "hopping.h"
@@ -57,7 +56,6 @@
 #include "radiocoms.h"
 #include "hwutils.h"
 #include "gui_walnut.h"
-
 
 // TODO get rid of externs one way or another. Very quick fix to get gui out of tx main
 extern int txbat;
@@ -128,6 +126,8 @@ void virtualKeyCapsClick(clickEventArgs* clickargs);
 void virtualKeyClick(clickEventArgs* clickargs);
 
 void sleepClick(clickEventArgs* clickargs);
+
+void exportGuiToXAML();
 
 //build display controls and pages
 
@@ -713,7 +713,6 @@ uint8 lcdbuf[8* 128 ]__attribute__ ((aligned (4)));
 int currentPage = 0;
 int lastPage = -1;
 
-
 /****************************************************************************
  *
  * NAME: initGUI
@@ -721,8 +720,7 @@ int lastPage = -1;
  * DESCRIPTION:
  *
  * PARAMETERS:      Name            RW  Usage
- *  				model
- *  				txparams
+ *
  *
  * RETURNS: void
  *
@@ -736,10 +734,8 @@ void initGUI()
 	modelLabel.valid = FALSE;
 
 	initLcdEADog(E_AHI_SPIM_SLAVE_ENBLE_2, E_AHI_DIO4_INT, E_AHI_DIO5_INT, 180,
-				&lcd);
+			&lcd);
 	currentPage = 0;
-
-
 }
 
 /****************************************************************************
@@ -758,8 +754,8 @@ void initGUI()
  ****************************************************************************/
 void refreshGUI()
 {
-	renderPage(pages[currentPage].controls, pages[currentPage].len,
-						lastPage != currentPage, lcdbuf, 128);
+	renderPage(pages[currentPage].controls, pages[currentPage].len, lastPage
+			!= currentPage, lcdbuf, 128);
 	LcdBitBlt(lcdbuf, 128, 0, 0, 128, 64, &lcd);
 	lastPage = currentPage;
 }
@@ -957,7 +953,6 @@ void copyModelClick(clickEventArgs* clickargs)
 {
 	copyModel();
 
-
 	//storeSettings();
 	//must improve binding of strings
 	editModModLabel.valid = FALSE;
@@ -1032,8 +1027,7 @@ void virtualKeyClick(clickEventArgs* clickargs)
 void displayClick(uint8 x, uint8 y)
 {
 	//turn on backlight for a while
-	backlightTimer = 50* 30 ;
-	setBacklight(255);
+	backlightTimer = 50* 30 ;setBacklight(255);
 	clickEventArgs clickargs;
 	int c;
 	c=findControl( x, y,&pages[currentPage]);
@@ -1093,4 +1087,75 @@ void sleepClick(clickEventArgs* clickargs)
 {
 	sleep();
 }
+/****************************************************************************
+ *
+ * NAME: exportGuiToXAML
+ *
+ * DESCRIPTION: Create XAML representation of gui for editing and simulation
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *
+ *
+ * RETURNS:
+ *
+ *
+ * NOTES: Development function - not to be run during flight!
+ *
+ ****************************************************************************/
+
+void exportGuiToXAML()
+{
+	int pageidx;
+	for (pageidx = 0; pageidx < sizeof(pages) / sizeof(pages[1]); pageidx++)
+	{
+		visualPage *page;
+		page = &pages[pageidx];
+		pcComsPrintf("\r\n<rc24:visualPage>\r\n");
+		int controlidx;
+		for (controlidx = 0; controlidx < page->len; controlidx++)
+		{
+			visualControl* control;
+			control = &page->controls[controlidx];
+			labelControl* label;
+			numberControl* number;
+			barControl* bar;
+			imageControl* image;
+
+			switch (control->type)
+			{
+			case dctLabel:
+				label = (labelControl*) control->control;
+				pcComsPrintf(
+						"\t<rc24:Label Width=\"%d\" Height=\"%d\" Canvas.Left=\"%d\" Canvas.Top=\"%d\" Text=\"%s\" />\r\n",
+						label->w, label->h, label->x, label->y, label->txt);
+
+				break;
+			case dctNumber:
+				number = (numberControl*) control->control;
+				pcComsPrintf(
+						"\t<rc24:Number Width=\"%d\" Height=\"%d\" Canvas.Left=\"%d\" Canvas.Top=\"%d\"  />\r\n",
+						number->w, number->h, number->x, number->y);
+
+				break;
+			case dctBar:
+				bar = (barControl*) control->control;
+				pcComsPrintf(
+						"\t<rc24:bar Width=\"%d\" Height=\"%d\" Canvas.Left=\"%d\" Canvas.Top=\"%d\"  />\r\n",
+						bar->w, bar->h, bar->x, bar->y);
+
+				break;
+			case dctImage:
+				image = (imageControl*) control->control;
+				pcComsPrintf(
+						"\t<rc24:Image Width=\"%d\" Height=\"%d\" Canvas.Left=\"%d\" Canvas.Top=\"%d\"  />\r\n",
+						image->w, image->h, image->x, image->y);
+
+				break;
+
+			}
+			cycleDelay(300* 1000* 16 ) ;
+
+}			pcComsPrintf("\r\n</rc24:visualPage>");
+		}
+	}
 
