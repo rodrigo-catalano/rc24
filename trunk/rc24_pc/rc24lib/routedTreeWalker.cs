@@ -38,10 +38,12 @@ namespace rc24
         public void enumerateResponse(routedMessage resp)
         {
             route from=resp.Route.getReturnRoute();
+            commandReader reader = resp.getReader();
 
-            resp.resetReader();
-            resp.readByte();
-            string name=resp.readString();  
+            reader.ReadByte();
+            
+            string name=reader.ReadString();  
+
             //add to tree under parent
             //_parent.findNode(from);
             routedNode p=_parent;
@@ -60,11 +62,15 @@ namespace rc24
             
             //add children to unwalked list
 
-            while(resp.bytesRemaining()>0)
+            try
             {
-                byte con=resp.readByte();
-                UnwalkedRoutes.Add(new route(from,con));
+                while (1 == 1)
+                {
+                    byte con = reader.ReadByte();
+                    UnwalkedRoutes.Add(new route(from, con));
+                }
             }
+            catch (Exception) { }
         }
         public routedMessage getNextRequest()
         {

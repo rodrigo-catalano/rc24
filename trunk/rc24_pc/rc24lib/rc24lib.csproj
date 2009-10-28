@@ -46,6 +46,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ccParameter.cs" />
+    <Compile Include="commandReader.cs" />
+    <Compile Include="commandWriter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="route.cs" />
     <Compile Include="routedMessage.cs" />
