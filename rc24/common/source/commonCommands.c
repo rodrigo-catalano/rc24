@@ -40,6 +40,24 @@
 
 //helper functions to parse or build command buffers
 
+/****************************************************************************
+ *
+ * NAME: ccWriteString
+ *
+ * DESCRIPTION: write a string to buffer prefixed with its length in a byte
+ * 				the terminating null is not written
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  				out				W	buffer to write string to
+ *  				val				R   null terminated string to write
+ *
+ * RETURNS: uint8 number of bytes written
+ *
+ *
+ * NOTES:
+ *  None.
+ ****************************************************************************/
+
 uint8 ccWriteString(uint8* out,const char* val)
 {
 	int len = strlen(val);
@@ -48,16 +66,70 @@ uint8 ccWriteString(uint8* out,const char* val)
 	return (uint8)(len + 1);
 }
 
+/****************************************************************************
+ *
+ * NAME: ccWriteInt32
+ *
+ * DESCRIPTION: write int32 value to buffer in native byte order
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  				out				W	buffer to write to
+ *  				val				R 	value
+ *
+ * RETURNS: uint8 number of bytes written
+ *
+ *
+ * NOTES:
+ *  None.
+ ****************************************************************************/
+
 uint8 ccWriteInt32(uint8* out,int32 val)
 {
 	memcpy(out,&val,4);
 	return 4;
 }
+
+/****************************************************************************
+ *
+ * NAME: ccWriteInt16
+ *
+ * DESCRIPTION: write int16 value to buffer in native byte order
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  				out				W	buffer to write to
+ *  				val				R 	value
+ *
+ * RETURNS: uint8 number of bytes written
+ *
+ *
+ * NOTES:
+ *  None.
+ ****************************************************************************/
+
 uint8 ccWriteInt16(uint8* out,int16 val)
 {
 	memcpy(out,&val,2);
 	return 2;
 }
+
+/****************************************************************************
+ *
+ * NAME: ccEnumGroupCommand
+ *
+ * DESCRIPTION: Handles commands from the basic property/feature discovery
+ * 				interface
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  				paramList		RW	list of public properties
+ *  				inMsg			R	incoming message
+ *  				outMsg			w	return message
+ *
+ * RETURNS: uint8 length of return message 0 for no response
+ *
+ *
+ * NOTES:
+ *  None.
+ ****************************************************************************/
 
 uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 {
@@ -82,6 +154,7 @@ uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg
 	case CMD_ENUM_GET_PARAMETERS_RESP:
 		break;
 	case CMD_ENUM_GET_PARAMETER_META:
+		//send metadata for property
 		paramIdx=inMsg[2];
 		outMsg[retlen++] = CMD_ENUM_GROUP;
 		outMsg[retlen++] = CMD_ENUM_GET_PARAMETER_META_RESP;
@@ -98,6 +171,24 @@ uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg
 
 	return retlen;
 }
+
+/****************************************************************************
+ *
+ * NAME: ccSetParameter
+ *
+ * DESCRIPTION: Handles commands to set a public property
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  				paramList		RW	list of public properties
+ *  				inMsg			R	incoming message
+ *  				outMsg			w	return message
+ *
+ * RETURNS: uint8 length of return message 0 for no response
+ *
+ *
+ * NOTES:
+ *  None.
+ ****************************************************************************/
 
 uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 {
@@ -169,6 +260,24 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 	}
 	return retlen;
 }
+/****************************************************************************
+ *
+ * NAME: ccGetParameter
+ *
+ * DESCRIPTION: Handles commands to get a public property
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  				paramList		RW	list of public properties
+ *  				inMsg			R	incoming message
+ *  				outMsg			w	return message
+ *
+ * RETURNS: uint8 length of return message 0 for no response
+ *
+ *
+ * NOTES:
+ *  None.
+ ****************************************************************************/
+
 uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 {
 	uint8 retlen = 0;
