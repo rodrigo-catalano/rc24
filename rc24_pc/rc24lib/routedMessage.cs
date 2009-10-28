@@ -28,7 +28,6 @@ namespace rc24
     {
         private route _address;
         private List<byte> _command;
-        private int _readIdx = 0;
         public routedMessage()
         {
 
@@ -48,41 +47,17 @@ namespace rc24
             _address = Route;
             _command = new List<byte>(cmd);          
         }
-        public void resetReader()
+        public commandReader getReader()
         {
-            _readIdx = 0;
+            return new commandReader(new System.IO.MemoryStream(_command.ToArray()));
         }
+        
         public route Route
         {
             get
             {
                 return _address;
             }
-        }
-
-        public string readString()
-        {
-            byte len = readByte();  
-            StringBuilder ret=new StringBuilder(len);
-            for (int i = 0; i < len; i++) ret.Append((char)readByte());
-            return ret.ToString();
-        }
-        public byte readByte()
-        {
-            return _command[_readIdx++];
-        }
-        public int readInt32()
-        {
-            return (_command[_readIdx++] << 24) + (_command[_readIdx++] << 16)
-                +(_command[_readIdx++] << 8)+(_command[_readIdx++] );
-        }
-        public UInt16 readInt16()
-        {
-            return (UInt16)((_command[_readIdx++] << 8) + (_command[_readIdx++]));
-        }
-        public int bytesRemaining()
-        {
-            return _command.Count - _readIdx;
         }
         public byte[] toByteArray()
         {

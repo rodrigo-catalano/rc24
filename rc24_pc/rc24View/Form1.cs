@@ -411,8 +411,9 @@ namespace Serial
                         {
                             if (rUpload != null)
                             {
-                                msg.readByte();
-                                string moduleType = msg.readString();
+                                commandReader reader = msg.getReader();
+                                reader.ReadByte();
+                                string moduleType = reader.ReadString();
                                 string key;
                                 if (activeNode.name == "TX") key = "txbinpath";
                                 else key = "rxbinpath";
@@ -436,14 +437,16 @@ namespace Serial
                         }
                     case 0x95: //
                         {
-                            msg.readByte();
-                            MessageBox.Show("Upload Failed " + msg.readByte());
+                            commandReader reader = msg.getReader();
+                            reader.ReadByte();
+                            MessageBox.Show("Upload Failed " + reader.ReadByte());
                             break;
                         }
                     case 0xff://debug message
                         {
-                            msg.readByte();
-                            SetText(msg.readString());
+                            commandReader reader = msg.getReader();
+                            reader.ReadByte();
+                            SetText(reader.ReadString());
                             break;
                         }
                     case 0x0a://common commands
@@ -453,8 +456,9 @@ namespace Serial
                         }
                     case 0x04://get parameter value response
                         {
-                            msg.readByte();
-                            byte paramIdx = msg.readByte();
+                            commandReader reader = msg.getReader();
+                            reader.ReadByte();
+                            byte paramIdx = reader.ReadByte();
                             //depending on type read value
 
                           //  byte val = msg.readByte();
@@ -587,12 +591,14 @@ namespace Serial
         }
         private void handleCommonCommand(routedMessage msg, byte fromCon)
         {
-            msg.readByte();
-            byte cmd = msg.readByte();
+            commandReader reader = msg.getReader();
+            reader.ReadByte();
+           
+            byte cmd = reader.ReadByte();
             switch (cmd)
             {
                 case 5: //parameter count
-                    byte count = msg.readByte();
+                    byte count = reader.ReadByte();
                     activeNode.parameterCount = count;
                     if (count > 0)
                     {
@@ -601,9 +607,9 @@ namespace Serial
                     }
                     break;
                 case 7: //parameter metadata
-                    byte pIdx = msg.readByte();
-                    string pName = msg.readString();
-                    byte pType = msg.readByte();
+                    byte pIdx = reader.ReadByte();
+                    string pName = reader.ReadString();
+                    byte pType = reader.ReadByte();
 
                     ccParameter property = new ccParameter(pIdx, pName, pType);
                     activeNode.properties.Add(pName, property);
