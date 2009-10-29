@@ -48,6 +48,14 @@
 #define CONTX 0
 #define CONPC 1
 
+#define FRAME_RATE 20	// Frame rate in Hz
+
+#define RX_LED_BIT		(1 << 17)			// DIO for LED
+#define LED_FLASH_SLOW 	(FRAME_RATE * 2)	// Flash every 2 secs
+#define LED_FLASH_MED  	FRAME_RATE			// Flash every second
+#define LED_FLASH_FAST 	(FRAME_RATE / 2)	// Flash twice per sec
+
+
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/
@@ -115,10 +123,12 @@ PRIVATE uint8 txLinkQuality = 0;	// Link quality from last message
 PRIVATE uint32 frameCounter = 0;	// Good for almost 3 years at 50/sec
 PRIVATE uint8 debugCon = CONPC;	// Where to send debug messages
 PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
+PRIVATE uint8 rxLEDFlashCount = 0;	// Counter for LED flasher
+PRIVATE uint8 rxLEDFlashLimit = LED_FLASH_MED;	// Count limit to toggle LED
+PRIVATE bool rxLEDState = FALSE;	// State of LED
 
 // TODO - make local to using function
 PRIVATE nmeaGpsData gpsData;	// Data from GPS device
-
 
 PRIVATE uint8 returnPacketIdx=0;
 
@@ -354,6 +364,8 @@ PUBLIC void AppColdStart(void)
 	// Use dio 16 for test sync pulse
 	vAHI_DioSetDirection(0, 1 << 16);
 
+	// Use DIO 17 for the LED
+	vAHI_DioSetDirection(0, RX_LED_BIT);
 
 	// Set demands to impossible values
 	// TODO - fix magic numbers grrr
@@ -424,8 +436,6 @@ void frameStartEvent(void* buff)
 	// Only do automatic bind request after 10secs incase this
 	// was an unintended reboot in flight.
 	// Only do if not already communicating with a tx
-
-	// TODO - Explain
 	if ((frameCounter > 500 && frameCounter < 5000) &&
 		getHopMode() == hoppingRxStartup)
 	{
@@ -450,6 +460,39 @@ void frameStartEvent(void* buff)
 			memcpy(&packet[10], &macptr->u32H, sizeof(macptr->u32H));
 
 			vTransmitDataPacket(packet, sizeof(packet), TRUE);
+		}
+
+		// Set the flash rate to fast to indicate binding attempts
+		rxLEDFlashLimit = LED_FLASH_FAST;
+	}
+
+	// LED Flasher to indicate binding state.
+	if ((getHopMode() == hoppingContinuous) && !rxLEDState)
+	{
+		// We have bound, set the LED on
+		rxLEDState = TRUE;
+		vAHI_DioSetOutput(RX_LED_BIT, 0);
+	}
+	else
+	{
+		if (frameCounter > 5000)
+			// We have timed out
+			rxLEDFlashLimit = LED_FLASH_SLOW;
+
+		// If the count exceeds the current limit, toggle the LED state
+		if (++rxLEDFlashCount > rxLEDFlashLimit)
+		{
+			// Toggle the state flag
+			rxLEDState = !rxLEDState;
+
+			// Set the output accordingly
+			if (rxLEDState)
+				vAHI_DioSetOutput(RX_LED_BIT, 0);
+			else
+				vAHI_DioSetOutput(0, RX_LED_BIT);
+
+			// Reset the counter for the next cycle
+			rxLEDFlashCount = 0;
 		}
 	}
 }
