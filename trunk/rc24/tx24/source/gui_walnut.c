@@ -217,9 +217,9 @@ uint8 downicon8x8[] =
 visualControl* focusedControl = NULL;
 
 labelControl headerLabel =
-{ "tx24 2.09", 0, 0, 48, 8, 8, 0, TRUE, FALSE, NULL };
+{ "tx24 2.11", 0, 0, 48, 8, 8, 0, TRUE, FALSE, NULL };
 labelControl modelLabel =
-{ &liveModel.name, 48, 0, 64, 8, 8, 0, TRUE, FALSE, NULL };
+{ liveModel.name, 48, 0, 64, 8, 8, 0, TRUE, FALSE, NULL };
 
 labelControl txbatLabel =
 { "tx bat", 0, 8, 30, 8, 8, 0, TRUE, FALSE, NULL };
@@ -436,7 +436,7 @@ visualControl primaryTrimPage[] =
 //edit model page
 
 labelControl editModModLabel =
-{ &liveModel.name, 0, 0, 100, 8, D_STD_FONT, D_NORMAL, D_VISIBLE, D_REDRAW,
+{ liveModel.name, 0, 0, 100, 8, D_STD_FONT, D_NORMAL, D_VISIBLE, D_REDRAW,
 		NULL };
 labelControl editModCopyLabel =
 { "Copy", 0, 8, 36, 8, D_STD_FONT, D_INVERSE, D_VISIBLE, D_REDRAW,
@@ -445,11 +445,16 @@ labelControl editModBindLabel =
 { "Bind", 64, 8, 36, 8, D_STD_FONT, D_INVERSE, D_VISIBLE, D_REDRAW,
 		bindModelClick };
 
+labelControl editModState =
+{ "Bound", 64, 24, 36, 8, D_STD_FONT, D_NORMAL, D_VISIBLE, D_REDRAW,
+		NULL};
+
 visualControl editModelPage[] =
 {
 { &editModModLabel, dctLabel },
 { &editModCopyLabel, dctLabel },
 { &editModBindLabel, dctLabel },
+{ &editModState, dctLabel },
 { &p1Up, dctImage },
 { &p1Down, dctImage } };
 
@@ -852,6 +857,9 @@ void bindModelClick(clickEventArgs* clickargs)
 	setHopMode(hoppingFixed);
 	eAppApiPlmeSet(PHY_PIB_ATTR_CURRENT_CHANNEL, getHopChannel(0));
 	//wait for bind request
+
+	editModState.txt="Binding";
+	editModState.valid=FALSE;
 
 }
 

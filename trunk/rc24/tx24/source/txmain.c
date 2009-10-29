@@ -242,9 +242,9 @@ int testparam2=6543;
 //their command id is defined by position in the list
 ccParameter exposedParameters[]=
 {
-		{"testuint8",CC_UINT8,&testparam},
-		{"testint",CC_INT32,&testparam2},
-		{"TX Demands",CC_UINT16_ARRAY,txInputs}
+		{"testuint8",CC_UINT8,&testparam,0},
+		{"testint",CC_INT32,&testparam2,0},
+		{"TX Demands",CC_UINT16_ARRAY,txInputs,sizeof(txInputs)/sizeof(txInputs[0])}
 };
 ccParameterList parameterList=
 {

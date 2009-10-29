@@ -159,10 +159,11 @@ uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg
 		outMsg[retlen++] = CMD_ENUM_GROUP;
 		outMsg[retlen++] = CMD_ENUM_GET_PARAMETER_META_RESP;
 		outMsg[retlen++] =  paramIdx;
-		//index,name, type & guid, readable writeable, expert level,reset required
+		//index,name,len, type & guid, readable writeable, expert level,reset required
 		ccParameter* param = &paramList->parameters[paramIdx];
 		retlen+=ccWriteString(&outMsg[retlen],param->name);
 		outMsg[retlen++] = (uint8)param->type;
+		outMsg[retlen++] = (uint8)param->arrayLen;
 		// TODO include rest of metadata once fully defined
 		break;
 	case CMD_ENUM_GET_PARAMETER_META_RESP:
@@ -283,6 +284,8 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 	uint8 retlen = 0;
 	outMsg[retlen++] = CMD_GET_PARAM_RESP;
 	outMsg[retlen++] = inMsg[1];
+	uint8 start=0;
+	uint8 len=0;
 
 	ccParameter* param = &paramList->parameters[inMsg[1]];
 	//if direct access to variable
@@ -326,9 +329,11 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		case CC_INT8_ARRAY:
 			break;
 		case CC_UINT16_ARRAY:
-			outMsg[retlen++] =0;
-			outMsg[retlen++] =20;
-			memcpy(&outMsg[retlen],(void*) paramPtr,40);
+			start=inMsg[2];
+			len=inMsg[3];
+			outMsg[retlen++] =start;
+			outMsg[retlen++] =len;
+			memcpy(&outMsg[retlen],(uint16*) paramPtr+start,len*2);
 			retlen+=40;
 			break;
 		case CC_INT16_ARRAY:

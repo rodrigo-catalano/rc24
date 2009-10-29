@@ -123,6 +123,7 @@ codes >= 0x80 app
 		const char* name;
 		ccType type;
 		void* paramPtr;  //set to NULL for accessor function access
+		int arrayLen; //length of array parameter
 	//	setFunction
 	//	getFunction
 
