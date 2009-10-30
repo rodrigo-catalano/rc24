@@ -58,6 +58,7 @@ namespace rc24
         public Type type;
         public object Value;
         public byte TypeIdx;
+        public byte ArrayLen;
 
         static ccParameter()
         {
@@ -84,12 +85,13 @@ namespace rc24
             types.Add(typeof(Int64[]));
 
         }
-        public ccParameter(int index, string name, byte typeIdx)
+        public ccParameter(int index, string name, byte typeIdx,byte arrayLen)
         {
             Index = index;
             Name=name;
             type = getTypeFromCode(typeIdx);
             TypeIdx = typeIdx;
+            ArrayLen = arrayLen;
         }
         public void parseValue(routedMessage msg)
         {

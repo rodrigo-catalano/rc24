@@ -53,7 +53,7 @@ namespace Serial
             // textBox1
             // 
             this.textBox1.Location = new System.Drawing.Point(9, 507);
-            this.textBox1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.textBox1.Margin = new System.Windows.Forms.Padding(2);
             this.textBox1.Multiline = true;
             this.textBox1.Name = "textBox1";
             this.textBox1.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -63,9 +63,9 @@ namespace Serial
             // buttonConnect
             // 
             this.buttonConnect.Location = new System.Drawing.Point(9, 10);
-            this.buttonConnect.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.buttonConnect.Margin = new System.Windows.Forms.Padding(2);
             this.buttonConnect.Name = "buttonConnect";
-            this.buttonConnect.Size = new System.Drawing.Size(67, 20);
+            this.buttonConnect.Size = new System.Drawing.Size(83, 20);
             this.buttonConnect.TabIndex = 1;
             this.buttonConnect.Text = "Connect";
             this.buttonConnect.UseVisualStyleBackColor = true;
@@ -75,7 +75,7 @@ namespace Serial
             // 
             this.buttonProgTx.Location = new System.Drawing.Point(9, 35);
             this.buttonProgTx.Name = "buttonProgTx";
-            this.buttonProgTx.Size = new System.Drawing.Size(118, 23);
+            this.buttonProgTx.Size = new System.Drawing.Size(165, 23);
             this.buttonProgTx.TabIndex = 2;
             this.buttonProgTx.Text = "Boot Load Prog Tx";
             this.buttonProgTx.UseVisualStyleBackColor = true;
@@ -85,7 +85,7 @@ namespace Serial
             // 
             this.buttonProgRx.Location = new System.Drawing.Point(9, 64);
             this.buttonProgRx.Name = "buttonProgRx";
-            this.buttonProgRx.Size = new System.Drawing.Size(118, 23);
+            this.buttonProgRx.Size = new System.Drawing.Size(165, 23);
             this.buttonProgRx.TabIndex = 3;
             this.buttonProgRx.Text = "Boot Load Prog Rx";
             this.buttonProgRx.UseVisualStyleBackColor = true;
@@ -94,7 +94,7 @@ namespace Serial
             // textBoxStatus
             // 
             this.textBoxStatus.Location = new System.Drawing.Point(9, 485);
-            this.textBoxStatus.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.textBoxStatus.Margin = new System.Windows.Forms.Padding(2);
             this.textBoxStatus.Name = "textBoxStatus";
             this.textBoxStatus.ReadOnly = true;
             this.textBoxStatus.Size = new System.Drawing.Size(453, 20);
@@ -103,10 +103,10 @@ namespace Serial
             // comboBoxPort
             // 
             this.comboBoxPort.FormattingEnabled = true;
-            this.comboBoxPort.Location = new System.Drawing.Point(80, 10);
-            this.comboBoxPort.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.comboBoxPort.Location = new System.Drawing.Point(96, 11);
+            this.comboBoxPort.Margin = new System.Windows.Forms.Padding(2);
             this.comboBoxPort.Name = "comboBoxPort";
-            this.comboBoxPort.Size = new System.Drawing.Size(48, 21);
+            this.comboBoxPort.Size = new System.Drawing.Size(78, 21);
             this.comboBoxPort.TabIndex = 7;
             // 
             // timer1
@@ -115,10 +115,10 @@ namespace Serial
             // 
             // buttonimageimport
             // 
-            this.buttonimageimport.Location = new System.Drawing.Point(9, 93);
-            this.buttonimageimport.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.buttonimageimport.Location = new System.Drawing.Point(9, 92);
+            this.buttonimageimport.Margin = new System.Windows.Forms.Padding(2);
             this.buttonimageimport.Name = "buttonimageimport";
-            this.buttonimageimport.Size = new System.Drawing.Size(118, 21);
+            this.buttonimageimport.Size = new System.Drawing.Size(165, 21);
             this.buttonimageimport.TabIndex = 9;
             this.buttonimageimport.Text = "Import Image";
             this.buttonimageimport.UseVisualStyleBackColor = true;
@@ -127,7 +127,7 @@ namespace Serial
             // buttonrefreshTree
             // 
             this.buttonrefreshTree.Location = new System.Drawing.Point(9, 151);
-            this.buttonrefreshTree.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.buttonrefreshTree.Margin = new System.Windows.Forms.Padding(2);
             this.buttonrefreshTree.Name = "buttonrefreshTree";
             this.buttonrefreshTree.Size = new System.Drawing.Size(144, 19);
             this.buttonrefreshTree.TabIndex = 12;
@@ -138,7 +138,7 @@ namespace Serial
             // splitContainer1
             // 
             this.splitContainer1.Location = new System.Drawing.Point(10, 184);
-            this.splitContainer1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.splitContainer1.Margin = new System.Windows.Forms.Padding(2);
             this.splitContainer1.Name = "splitContainer1";
             // 
             // splitContainer1.Panel1
@@ -161,7 +161,7 @@ namespace Serial
             // 
             this.treeView1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.treeView1.Location = new System.Drawing.Point(0, 0);
-            this.treeView1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.treeView1.Margin = new System.Windows.Forms.Padding(2);
             this.treeView1.Name = "treeView1";
             this.treeView1.Size = new System.Drawing.Size(149, 297);
             this.treeView1.TabIndex = 0;
@@ -170,7 +170,7 @@ namespace Serial
             // propertyGrid1
             // 
             this.propertyGrid1.Location = new System.Drawing.Point(2, 37);
-            this.propertyGrid1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.propertyGrid1.Margin = new System.Windows.Forms.Padding(2);
             this.propertyGrid1.Name = "propertyGrid1";
             this.propertyGrid1.Size = new System.Drawing.Size(292, 259);
             this.propertyGrid1.TabIndex = 4;
@@ -188,7 +188,7 @@ namespace Serial
             // buttonResetNode
             // 
             this.buttonResetNode.Location = new System.Drawing.Point(196, 11);
-            this.buttonResetNode.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.buttonResetNode.Margin = new System.Windows.Forms.Padding(2);
             this.buttonResetNode.Name = "buttonResetNode";
             this.buttonResetNode.Size = new System.Drawing.Size(78, 19);
             this.buttonResetNode.TabIndex = 1;
@@ -200,7 +200,7 @@ namespace Serial
             // buttonUploadCode
             // 
             this.buttonUploadCode.Location = new System.Drawing.Point(110, 11);
-            this.buttonUploadCode.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.buttonUploadCode.Margin = new System.Windows.Forms.Padding(2);
             this.buttonUploadCode.Name = "buttonUploadCode";
             this.buttonUploadCode.Size = new System.Drawing.Size(82, 19);
             this.buttonUploadCode.TabIndex = 0;
@@ -231,7 +231,7 @@ namespace Serial
             this.Controls.Add(this.buttonProgTx);
             this.Controls.Add(this.buttonConnect);
             this.Controls.Add(this.textBox1);
-            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "Form1";
             this.Text = "RC24 Configuation";
             this.Load += new System.EventHandler(this.Form1_Load);
