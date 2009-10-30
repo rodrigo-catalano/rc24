@@ -610,8 +610,9 @@ namespace Serial
                     byte pIdx = reader.ReadByte();
                     string pName = reader.ReadString();
                     byte pType = reader.ReadByte();
+                    byte pArrayLen = reader.ReadByte();
 
-                    ccParameter property = new ccParameter(pIdx, pName, pType);
+                    ccParameter property = new ccParameter(pIdx, pName, pType, pArrayLen);
                     activeNode.properties.Add(pName, property);
 
                     //bind to property editor
@@ -622,7 +623,7 @@ namespace Serial
                     propertyGrid1.Refresh();
 
                     //get value
-                    routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx });
+                    routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx, 0x00, pArrayLen });
                     SendRoutedMessage(msgValReq, SERIALCON);
 
 
