@@ -54,8 +54,6 @@
 #include "gui_walnut.h"
 #include "commonCommands.h"
 
-#define HIPOWERMODULE
-
 /* Data type for storing data related to all end devices that have associated */
 typedef struct
 {
@@ -108,19 +106,20 @@ void rxComsSendRoutedPacket(uint8* msg, int offset, uint8 len);
 void updateDisplay(void);
 void updatePcDisplay(void);
 
-
-
-
 void checkBattery(void);
 
 void storeSettings(void);
 void loadSettings(void);
+void loadRadioSettings(store* s);
+void saveRadioSettings(store* s);
+
 void loadDefaultSettings(void);
 
 void sleep(void);
 
 void enableModelComs(void);
 void txSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon);
+
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -152,6 +151,8 @@ int flightTimer = 0;
 uint8 MaxRetries = 5;
 uint8 RetryNo = 0;
 
+bool useHighPowerModule = FALSE;
+
 ps2ControllerOp ps2;
 WiiController wii;
 tsc2003 touchScreen;
@@ -177,7 +178,6 @@ int16 numModels = 0;
 
 int rxData[256];
 
-
 //initial position
 int initialHeight = -9999;
 double initialLat = -9999;
@@ -187,7 +187,6 @@ int range = 0;
 
 int joystickOffset[4];
 int joystickGain[4];
-
 
 #define PS2INPUT 0
 #define ADINPUT 1
@@ -208,13 +207,12 @@ uint16 batDac = 1023;
 
 int backlightTimer = 50* 60* 1 ;
 
-int txbat = 0;
+int
+txbat = 0;
 int rxbat = 0;
 int txretries = 0;
 int rxpackets = 0;
 int txacks = 0;
-
-
 
 int tsDebounceLast = 0;
 int tsDebounceCount = 0;
@@ -235,22 +233,21 @@ pcCom pccoms;
 uint32 dbgmsgtimestart;
 uint32 dbgmsgtimeend;
 
-uint8 testparam=3;
-int testparam2=6543;
+uint8 testparam = 3;
+int testparam2 = 6543;
 //list of parameters that can be read or set by connected devices
 //either by direct access to variable or through getters and setters
 //their command id is defined by position in the list
-ccParameter exposedParameters[]=
+ccParameter exposedParameters[] =
 {
-		{"testuint8",CC_UINT8,&testparam,0},
-		{"testint",CC_INT32,&testparam2,0},
-		{"TX Demands",CC_UINT16_ARRAY,txInputs,sizeof(txInputs)/sizeof(txInputs[0])}
-};
-ccParameterList parameterList=
-{
-		exposedParameters,
-		sizeof(exposedParameters)/sizeof(exposedParameters[0])
-};
+{ "testuint8", CC_UINT8, &testparam, 0 },
+{ "testint", CC_INT32, &testparam2, 0 },
+{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 },
+{ "TX Demands", CC_UINT16_ARRAY, txInputs, sizeof(txInputs)
+		/ sizeof(txInputs[0]) } };
+
+ccParameterList parameterList =
+{ exposedParameters, sizeof(exposedParameters) / sizeof(exposedParameters[0]) };
 
 #if (JENNIC_CHIP_FAMILY == JN514x)
 #define BUS_ERROR *((volatile uint32 *)(0x4000000))
@@ -340,7 +337,6 @@ PUBLIC void AppColdStart(void)
 
 	vInitSystem();
 
-	initPcComs(&pccoms, CONPC, 0, txHandleRoutedMessage);
 
 	setRadioDataCallback(txHandleRoutedMessage, CONRX);
 
@@ -352,12 +348,8 @@ PUBLIC void AppColdStart(void)
 
 	pcComsPrintf("tx24 2.11 \r\n");
 
-
 	pcComsPrintf("lcd init done \r\n");
 
-	loadSettings();
-
-	pcComsPrintf("settings loaded \r\n");
 
 	initGUI();
 	refreshGUI();
@@ -582,13 +574,20 @@ PRIVATE void vInitSystem(void)
 
 	(void) u32AppQApiInit(NULL, NULL, NULL);
 
+	initPcComs(&pccoms, CONPC, 0, txHandleRoutedMessage);
+
+	loadSettings();
+
+	pcComsPrintf("settings loaded \r\n");
+
 	//move to after u32AHI_Init() to work on jn5148
-#ifdef HIPOWERMODULE
-	//max power for europe including antenna gain is 10dBm
-	//??? boost is +2.5 ant is 2 and power set to 4 = 8.5 ????
-	vAHI_HighPowerModuleEnable(TRUE, TRUE);
-	bAHI_PhyRadioSetPower(2);
-#endif
+	if (useHighPowerModule == TRUE)
+	{
+		//max power for europe including antenna gain is 10dBm
+		//??? boost is +2.5 ant is 2 and power set to 4 = 8.5 ????
+		vAHI_HighPowerModuleEnable(TRUE, TRUE);
+		bAHI_PhyRadioSetPower(2);
+	}
 
 	/* Initialise coordinator state */
 	sCoordinatorData.eState = E_STATE_IDLE;
@@ -935,14 +934,14 @@ void txHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			break;
 		}
 
-		case CMD_ENUM_GROUP :
-			replyLen=ccEnumGroupCommand(&parameterList, msgBody, replyBody);
+		case CMD_ENUM_GROUP:
+			replyLen = ccEnumGroupCommand(&parameterList, msgBody, replyBody);
 			break;
 		case CMD_SET_PARAM:
-			replyLen=ccSetParameter(&parameterList, msgBody, replyBody);
+			replyLen = ccSetParameter(&parameterList, msgBody, replyBody);
 			break;
 		case CMD_GET_PARAM:
-			replyLen=ccGetParameter(&parameterList, msgBody, replyBody);
+			replyLen = ccGetParameter(&parameterList, msgBody, replyBody);
 			break;
 		case 16: //bind request -
 		{
@@ -1410,14 +1409,14 @@ PRIVATE void vCreateAndSendFrame(void)
 		//3755=3.3v
 		int ref = u16ReadADCAverage(E_AHI_ADC_SRC_VOLT);
 
-		txInputs[0] = ((u16ReadADCAverage(0) - 2048) * 3755 / ref - joystickOffset[0])
-				* 2048 / joystickGain[0];
-		txInputs[1] = ((u16ReadADCAverage(1) - 2048) * 3755 / ref - joystickOffset[1])
-				* 2048 / joystickGain[1];
-		txInputs[2] = ((u16ReadADCAverage(2) - 2048) * 3755 / ref - joystickOffset[2])
-				* 2048 / joystickGain[2];
-		txInputs[3] = ((u16ReadADCAverage(3) - 2048) * 3755 / ref - joystickOffset[3])
-				* 2048 / joystickGain[3];
+		txInputs[0] = ((u16ReadADCAverage(0) - 2048) * 3755 / ref
+				- joystickOffset[0]) * 2048 / joystickGain[0];
+		txInputs[1] = ((u16ReadADCAverage(1) - 2048) * 3755 / ref
+				- joystickOffset[1]) * 2048 / joystickGain[1];
+		txInputs[2] = ((u16ReadADCAverage(2) - 2048) * 3755 / ref
+				- joystickOffset[2]) * 2048 / joystickGain[2];
+		txInputs[3] = ((u16ReadADCAverage(3) - 2048) * 3755 / ref
+				- joystickOffset[3]) * 2048 / joystickGain[3];
 		break;
 	}
 	case NUNCHUCKINPUT:
@@ -1503,7 +1502,6 @@ void setBacklight(uint8 bri)
 		vAHI_DioSetOutput(0, E_AHI_DIO17_INT);
 	}
 }
-
 
 void updateDisplay()
 {
@@ -1602,7 +1600,7 @@ void nextModel()
 }
 void copyModel()
 {
-//save any changes to current model
+	//save any changes to current model
 	storeSettings();
 
 	//simply leave current stuff in liveModel structure
@@ -1613,6 +1611,7 @@ void copyModel()
 void storeSettings()
 {
 	//todo untested on JN5148
+	pcComsPrintf("Store settings\r\n");
 
 
 	store s;
@@ -1633,6 +1632,7 @@ void storeSettings()
 
 	//   pcComsPrintf("s %d %d %d",s.base,old.base,old.size);
 
+	saveRadioSettings(&s);
 	storeModels(&s, &liveModel, pold, liveModelIdx);
 
 	commitStore(&s);
@@ -1648,8 +1648,6 @@ void loadSettings()
 	int tag;
 	if (getOldStore(&s) == TRUE)
 	{
-		pcComsPrintf("store found %d \r\n", s.size);
-
 		while ((tag = storeGetSection(&s, &section)) > 0)
 		{
 			//   pcComsPrintf("tag found %d %d\r\n",tag,section.size);
@@ -1657,24 +1655,23 @@ void loadSettings()
 			switch (tag)
 			{
 			case STOREMODELSSECTION:
-			{
 				pcComsPrintf("model section found %d\r\n", section.size);
 
 				readModels(&section, &liveModel, &liveModelIdx, &numModels);
 				pcComsPrintf("models found %d %d \r\n", numModels, liveModelIdx);
 
 				break;
-			}
+
 			case STORERADIOSECTION:
-			{
 
+				loadRadioSettings(&section);
 				break;
-			}
+
 			case STOREGENERALSECTION:
-			{
+
 
 				break;
-			}
+
 			}
 		}
 	}
@@ -1686,9 +1683,34 @@ void loadSettings()
 		loadDefaultSettings();
 
 }
+void loadRadioSettings(store* s)
+{
+	store section;
+	int tag;
+	while ((tag = storeGetSection(s, &section)) > 0)
+	{
+		switch (tag)
+		{
+		case STORERADIOHIGHPOWER:
+			if (readUint8(&section) == 0)
+				useHighPowerModule = TRUE;
+			else
+				useHighPowerModule = FALSE;
+			break;
+		}
+	}
+}
+void saveRadioSettings(store* s)
+{
+	store section;
+	storeStartSection(s,STORERADIOSECTION,&section);
+	if(useHighPowerModule==TRUE) storeUint8Section(&section,STORERADIOHIGHPOWER,0);
+	else storeUint8Section(&section,STORERADIOHIGHPOWER,1);
+	storeEndSection(s,&section);
+}
 void loadDefaultSettings()
 {
-//	setupAlula(&liveModel);
+	//	setupAlula(&liveModel);
 	setupDefaultModel(&liveModel);
 	numModels = 1;
 	liveModelIdx = 0;
