@@ -48,8 +48,9 @@ namespace Serial
 {
     public partial class Form1 : Form
     {
-        private SerialPort inp = new SerialPort("COM7", 38400, Parity.None, 8, StopBits.One);
-
+        private MyUserSettings mus;
+        private SerialPort inp;
+        
         bootLoaderUploader blupload = new bootLoaderUploader();
         rc24.routedUploader rUpload;
 
@@ -81,30 +82,12 @@ namespace Serial
         {
             InitializeComponent();
 
-            string com = System.Configuration.ConfigurationManager.AppSettings.GetValues("comport")[0];
-
-            inp.DataReceived += new SerialDataReceivedEventHandler(inp_DataReceived);
-            try
-            {
-                inp.PortName = com;
-                inp.Open();
-                comboBoxPort.Text = com;
-                inp.RtsEnable = false;
-
-            }
-            catch (Exception)
-            {
-            }
-            if (inp.IsOpen) buttonConnect.Text = "Disconnect";
-            else buttonConnect.Text = "Connect";
-
             lcd1.MouseClick += new MouseEventHandler(lcd1_MouseClick);
 
             nodeParameterList.GetValue += new Flobbster.Windows.Forms.PropertySpecEventHandler(nodeParameterList_GetValue);
 
             nodeParameterList.SetValue += new Flobbster.Windows.Forms.PropertySpecEventHandler(nodeParameterList_SetValue);
             propertyGrid1.SelectedObject = nodeParameterList;
-
         }
 
         void nodeParameterList_SetValue(object sender, Flobbster.Windows.Forms.PropertySpecEventArgs e)
@@ -206,13 +189,23 @@ namespace Serial
                 }
                 catch (Exception)
                 {
-
+                    // Oops
+                    MessageBox.Show("Error opening port", "Port Open", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-            if (inp.IsOpen) buttonConnect.Text = "Disconnect";
-            else buttonConnect.Text = "Connect";
-
+            
+            
+            // Set the button text according to the port state
+            if (inp.IsOpen)
+            {
+                buttonConnect.Text = "Disconnect";
+            }
+            else
+            {
+                buttonConnect.Text = "Connect";
+            }
         }
+
         private void SetText(string text)
         {
             // InvokeRequired required compares the thread ID of the
@@ -228,6 +221,7 @@ namespace Serial
                 textBox1.AppendText(text);
             }
         }
+
         private void SetStatusText(string text)
         {
             if (this.textBox1.InvokeRequired)
@@ -242,8 +236,8 @@ namespace Serial
         }
         private void buttonProgTX_Click(object sender, EventArgs e)
         {
-            string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues("txbinpath")[0];
-            string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("txbinpath5148")[0];
+            string filename = mus.txbinpath;
+            string filename5148 = mus.tx5148binpath;
             blupload.upload(filename, filename5148, inp, textBoxStatus, textBox1);
 
 
@@ -252,8 +246,8 @@ namespace Serial
 
         private void buttonProgRx_Click(object sender, EventArgs e)
         {
-            string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath")[0];
-            string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath5148")[0];
+            string filename = mus.rxbinpath;
+            string filename5148 = mus.rx5148binpath;
             blupload.upload(filename, filename5148, inp, textBoxStatus, textBox1);
 
 
@@ -319,11 +313,45 @@ namespace Serial
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            // Retrieve the user settings
+            mus = new MyUserSettings();
+            
+            // Create the serial port
+            inp = new SerialPort(mus.comPort, 38400, Parity.None, 8, StopBits.One);
+            
+            
+            // Hook-up the port data handler
+            inp.DataReceived += new SerialDataReceivedEventHandler(inp_DataReceived);
+            
+            // Attempt to open the port
+            try
+            {
+                inp.Open();
+                inp.RtsEnable = false;
+            }
+            catch (Exception)
+            {
+                // Oops
+                MessageBox.Show("Error opening port", "Port Open", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            // Set the button text according to the port state
+            if (inp.IsOpen)
+            {
+                buttonConnect.Text = "Disconnect";
+            }
+            else
+            {
+                buttonConnect.Text = "Connect";
+            }
+            
+            // Initialise the port droplist
             string[] ports = SerialPort.GetPortNames();
             foreach (string port in ports)
             {
                 comboBoxPort.Items.Add(port);
             }
+            comboBoxPort.SelectedItem = mus.comPort;
         }
 
         private void timer1_Tick(object sender, EventArgs e)
@@ -414,19 +442,35 @@ namespace Serial
                                 commandReader reader = msg.getReader();
                                 reader.ReadByte();
                                 string moduleType = reader.ReadString();
-                                string key;
-                                if (activeNode.name == "TX") key = "txbinpath";
-                                else key = "rxbinpath";
-                                if (moduleType == "JN5148") key += "5148";
-
-                                string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues(key)[0];
+                                string filename;
+                                if (moduleType == "JN5148")
+                                {
+                                    if (activeNode.name == "TX")
+                                    {
+                                        filename = mus.tx5148binpath;
+                                    }
+                                    else
+                                    {
+                                        filename = mus.rx5148binpath;
+                                    }
+                                }
+                                else{
+                                    if (activeNode.name == "TX")
+                                    {
+                                        filename = mus.txbinpath;
+                                    }
+                                    else
+                                    {
+                                        filename = mus.rxbinpath;
+                                    }
+                                }
                                 rUpload.setFile(filename);
                                 routedMessage reply = rUpload.sendNextCmd(msg);
                                 if (reply != null) SendRoutedMessage(reply, fromCon);
                             }
                             break;
                         }
-                    case 0x93: //code chunk recieved
+                    case 0x93: //code chunk received
                         {
                             if (rUpload != null)
                             {
@@ -555,19 +599,7 @@ namespace Serial
 
         private void buttonUploadCode_Click(object sender, EventArgs e)
         {
-            if (activeNode.name == "TX")
-            {
-                string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues("txbinpath")[0];
-                string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("txbinpath5148")[0];
-                rUpload = new routedUploader();
-            }
-            if (activeNode.name == "RX")
-            {
-                string filename = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath")[0];
-                string filename5148 = System.Configuration.ConfigurationManager.AppSettings.GetValues("rxbinpath5148")[0];
-                rUpload = new routedUploader();
-            }
-
+            rUpload = new routedUploader();
             routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x90 });
             SendRoutedMessage(msg, SERIALCON);
         }
@@ -628,6 +660,41 @@ namespace Serial
 
 
                     break;
+            }
+        }
+        
+        void ExitToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            Close();
+        }
+        
+        void OptionsToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            Form optForm = new OptionsForm();
+            
+            // Display the form modally
+            if (DialogResult.OK == optForm.ShowDialog())
+            {
+                // Check for a changed com port
+                if (mus.comPort != inp.PortName)
+                {
+                    inp.Close();
+                    inp.PortName = mus.comPort;
+                    buttonConnect.Text = "Connect";
+                    if (!comboBoxPort.Items.Contains(mus.comPort))
+                    {
+                        comboBoxPort.Items.Add(mus.comPort);
+                        comboBoxPort.SelectedItem = mus.comPort;
+                    }
+                }
+            }
+        }
+        
+        void Form1FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (inp.IsOpen)
+            {
+                inp.Close();
             }
         }
     }
