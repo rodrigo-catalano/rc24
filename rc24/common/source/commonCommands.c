@@ -206,6 +206,8 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		switch (param->type)
 		{
 		case CC_BOOL:
+			if(inMsg[2]==0)*((bool*) paramPtr)=TRUE;
+			else *((bool*) paramPtr)=FALSE;
 			break;
 		case CC_STRING:
 			break;
@@ -295,6 +297,8 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		switch (param->type)
 		{
 		case CC_BOOL:
+			if(*((bool*) paramPtr)==TRUE)outMsg[retlen++] =0x00;
+			else outMsg[retlen++] =0x01;
 			break;
 		case CC_STRING:
 			break;

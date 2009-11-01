@@ -24,8 +24,10 @@ Copyright 2008 - 2009 © Alan Hopper
 #define STOREINT16 0x80
 #define STOREINT32 0xc0
 
+//tx store section defines
 #define STOREGENERALSECTION 1
 #define STORERADIOSECTION 2
+#define STORERADIOHIGHPOWER (1 | STOREINT8)
 
 #define STOREMODELSSECTION 3
 #define STORE_MODEL 1
