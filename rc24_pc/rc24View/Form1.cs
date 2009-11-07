@@ -50,9 +50,11 @@ namespace Serial
     {
         private MyUserSettings mus;
         private SerialPort inp;
+        private SerialDataReceivedEventHandler serEh;
         
         bootLoaderUploader blupload = new bootLoaderUploader();
-        rc24.routedUploader rUpload;
+        rc24.routedUploader rUpload = null;
+        UploadProgress ulProg = null;
 
         //      private BackgroundWorker backgroundWorker1;
 
@@ -321,6 +323,7 @@ namespace Serial
             
             
             // Hook-up the port data handler
+            serEh = new SerialDataReceivedEventHandler(inp_DataReceived);
             inp.DataReceived += new SerialDataReceivedEventHandler(inp_DataReceived);
             
             // Attempt to open the port
@@ -465,6 +468,10 @@ namespace Serial
                                     }
                                 }
                                 rUpload.setFile(filename);
+                                // Instantiate the progress dialog
+                                ulProg = new UploadProgress(rUpload);
+                                ulProg.Show();
+                                    
                                 routedMessage reply = rUpload.sendNextCmd(msg);
                                 if (reply != null) SendRoutedMessage(reply, fromCon);
                             }
@@ -479,11 +486,26 @@ namespace Serial
                             }
                             break;
                         }
-                    case 0x95: //
+                    case 0x95: // Upload failed
                         {
                             commandReader reader = msg.getReader();
                             reader.ReadByte();
-                            MessageBox.Show("Upload Failed " + reader.ReadByte());
+                            string errorMsg;
+                            switch (reader.ReadByte()) {
+                                case 1:
+                                    errorMsg = "CRC Error";
+                                    break;
+                                case 2:
+                                    errorMsg = "Block Length Error";
+                                    break;
+                                case 3:
+                                    errorMsg = "Low Battery";
+                                    break;
+                                default:
+                                    errorMsg = "Unknown Error";
+                                    break;
+                            }
+                            MessageBox.Show("Upload Failed " + errorMsg);
                             break;
                         }
                     case 0xff://debug message
@@ -599,7 +621,7 @@ namespace Serial
 
         private void buttonUploadCode_Click(object sender, EventArgs e)
         {
-            rUpload = new routedUploader();
+            rUpload = new routedUploader();            
             routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x90 });
             SendRoutedMessage(msg, SERIALCON);
         }
@@ -692,6 +714,10 @@ namespace Serial
         
         void Form1FormClosing(object sender, FormClosingEventArgs e)
         {
+            if (null != serEh)
+            {
+                inp.DataReceived -= serEh;
+            }
             if (inp.IsOpen)
             {
                 inp.Close();

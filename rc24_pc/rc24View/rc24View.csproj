@@ -92,7 +92,9 @@
       <DependentUpon>model.cs</DependentUpon>
     </Compile>
     <Compile Include="MyUserSettings.cs" />
-    <Compile Include="OptionsForm.cs" />
+    <Compile Include="OptionsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="OptionsForm.Designer.cs">
       <DependentUpon>OptionsForm.cs</DependentUpon>
     </Compile>
@@ -122,6 +124,9 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
+    <EmbeddedResource Include="UploadProgress.resx">
+      <DependentUpon>UploadProgress.cs</DependentUpon>
+    </EmbeddedResource>
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
@@ -138,6 +143,12 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <Compile Include="PropertyBag.cs" />
+    <Compile Include="UploadProgress.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UploadProgress.Designer.cs">
+      <DependentUpon>UploadProgress.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
