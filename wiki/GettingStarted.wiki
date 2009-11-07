@@ -1,0 +1,55 @@
+#summary Getting Started Guide.
+
+= Getting Started =
+
+
+
+== Basic Steps ==
+
+
+* Make some hardware
+
+* Build or get .bin files
+
+* Copy bin files to flash on modules
+
+* Configure settings on rx and tx
+
+* Bind and play.
+
+== Make some Hardware ==
+
+???
+
+== Building the code ==
+
+We will shortly post bin files on the server but in the meantime you will have to build them ( or ask on rcgroups ).
+
+===RX & TX code===
+
+To build the Rx and Tx code for the JN5148 modules on a windows pc you will need to download the JN-SW-4041 JN5148 ZBPro SDK Toolchain  and JN-SW-4040 JN5148 ZBPro SDK Libraries from http://www.jennic.com/support/software/ and install them.  This will install a copy of the eclipse IDE.
+
+You then need to get a copy of the rx and tx source code from the goggle code svn server
+
+http://rc24.googlecode.com/svn/trunk/rc24
+
+To do this with TortoiseSVN.
+Right click on the c:\jennic\application directory in windows explorer and select SVN Checkout.  Fill the dialog in as below and click OK 
+
+http://www.ihopper.org/images/checkoutrc24.gif
+
+Then run eclipse and select File/Import then 'Import existing project into Workspace'. Now browse to the c:\jennic\application\rc24 directory and finish.
+
+The build all command in the project menu should build the rx and tx bin files.
+
+===PC Code===
+
+There is a pc program which is used to program the modules and configure them.
+The code is in the svn repository at
+http://rc24.googlecode.com/svn/trunk/rc24_pc
+This can be downloaded in the same way as above to anywhere on your pc.  To build the code you will need a copy of microsoft visual c# express 2008 (free from http://www.microsoft.com/express/vcsharp/ )
+In visual c# select file/open project and select the rc24_pc.sln file from wherever you downloaded the project to.
+ 
+==Flashing code to Modules==
+
+The bin files can be installed on the modules either with jennic's flash programming utility or our pc app.  These instructions are for the pc app.
