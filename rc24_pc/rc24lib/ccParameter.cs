@@ -29,26 +29,33 @@ namespace rc24
     public class ccParameter
     {
         // type ids as sent down the wire
-        const byte CC_BOOL=0;
-        const byte CC_STRING = 1;
-        const byte CC_UINT8 = 2;
-        const byte CC_INT8 = 3;
-        const byte CC_UINT16 = 4;
-        const byte CC_INT16 = 5;
-        const byte CC_UINT32 = 6;
-        const byte CC_INT32 = 7;
-        const byte CC_UINT64 = 8;
-        const byte CC_INT64 = 9;
-        const byte CC_BOOL_ARRAY = 10;
-        const byte CC_STRING_ARRAY = 11;
-        const byte CC_UINT8_ARRAY = 12;
-        const byte CC_INT8_ARRAY = 13;
-        const byte CC_UINT16_ARRAY = 14;
-        const byte CC_INT16_ARRAY = 15;
-        const byte CC_UINT32_ARRAY = 16;
-        const byte CC_INT32_ARRAY = 17;
-        const byte CC_UINT64_ARRAY = 18;
-        const byte CC_INT64_ARRAY = 19;
+        public const byte CC_BOOL=0;
+        public const byte CC_STRING = 1;
+        public const byte CC_UINT8 = 2;
+        public const byte CC_INT8 = 3;
+        public const byte CC_UINT16 = 4;
+        public const byte CC_INT16 = 5;
+        public const byte CC_UINT32 = 6;
+        public const byte CC_INT32 = 7;
+        public const byte CC_UINT64 = 8;
+        public const byte CC_INT64 = 9;
+        public const byte CC_BOOL_ARRAY = 10;
+        public const byte CC_STRING_ARRAY = 11;
+        public const byte CC_UINT8_ARRAY = 12;
+        public const byte CC_INT8_ARRAY = 13;
+        public const byte CC_UINT16_ARRAY = 14;
+        public const byte CC_INT16_ARRAY = 15;
+        public const byte CC_UINT32_ARRAY = 16;
+        public const byte CC_INT32_ARRAY = 17;
+        public const byte CC_UINT64_ARRAY = 18;
+        public const byte CC_INT64_ARRAY = 19;
+        public const byte CC_FLOAT = 20;
+		public const byte CC_DOUBLE=21;
+		public const byte CC_FLOAT_ARRAY=22;
+		public const byte CC_DOUBLE_ARRAY=23;
+        public const byte CC_ENUMERATION = 24;
+		public const byte CC_ENUMERATION_VALUES=25;
+        public const byte CC_VOID_FUNCTION = 26;
 
         // map rc24 types to .net types
         static List<Type> types=null; 
@@ -59,6 +66,8 @@ namespace rc24
         public object Value;
         public byte TypeIdx;
         public byte ArrayLen;
+        public byte EnumListIdx;
+        public routedNode Owner;
 
         static ccParameter()
         {
@@ -83,18 +92,29 @@ namespace rc24
             types.Add(typeof(Int32[]));
             types.Add(typeof(UInt64[]));
             types.Add(typeof(Int64[]));
+            types.Add(typeof(float));
+            types.Add(typeof(double));
+            types.Add(typeof(float[]));
+            types.Add(typeof(double[]));
+            types.Add(typeof(byte));
+            types.Add(typeof(string[]));
+            types.Add(typeof(byte));
+
 
         }
-        public ccParameter(int index, string name, byte typeIdx,byte arrayLen)
+        public ccParameter(int index, string name, byte typeIdx,byte arrayLen,routedNode owner)
         {
             Index = index;
             Name=name;
             type = getTypeFromCode(typeIdx);
             TypeIdx = typeIdx;
             ArrayLen = arrayLen;
+            Owner = owner;
         }
         public void parseValue(routedMessage msg)
         {
+            byte startIdx;
+            byte len;
             commandReader reader = msg.getReader();
             reader.ReadByte();
             reader.ReadByte();
@@ -153,8 +173,8 @@ namespace rc24
                 case CC_UINT16_ARRAY:
                     //TODO currently wrongly assume whole array is always sent
                     //TODO send array total length with metadata
-                    byte startIdx = reader.ReadByte();
-                    byte len = reader.ReadByte();
+                    startIdx = reader.ReadByte();
+                    len = reader.ReadByte();
                     UInt16[] valu16Array = new UInt16[len];
                     for (int i = 0; i < len; i++) valu16Array[i] = reader.ReadUInt16();
                     Value = valu16Array;
@@ -162,23 +182,44 @@ namespace rc24
                 case CC_INT16_ARRAY:
                     throw (new NotImplementedException());
                     break;
-                case
-                    CC_UINT32_ARRAY:
+                case CC_UINT32_ARRAY:
                     throw (new NotImplementedException());
                     break;
-                case
-                    CC_INT32_ARRAY:
+                case CC_INT32_ARRAY:
                     throw (new NotImplementedException());
                     break;
-                case
-                    CC_UINT64_ARRAY:
+                case CC_UINT64_ARRAY:
                     throw (new NotImplementedException());
                     break;
-                case
-                    CC_INT64_ARRAY:
+                case CC_INT64_ARRAY:
                     throw (new NotImplementedException());
                     break;
-
+                case CC_FLOAT:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_DOUBLE:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_FLOAT_ARRAY:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_DOUBLE_ARRAY:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_ENUMERATION:
+                    byte valenum = reader.ReadByte();
+                    Value = valenum;
+                    break;
+                case CC_ENUMERATION_VALUES:
+                    startIdx = reader.ReadByte();
+                    len = reader.ReadByte();
+                    string[] stringArray = new string[len];
+                    for (int i = 0; i < len; i++) stringArray[i] = reader.ReadString();
+                    Value = stringArray;
+                    break;
+                case CC_VOID_FUNCTION:
+                    throw (new NotImplementedException());
+                    break;
             }
         }
         
@@ -254,6 +295,26 @@ namespace rc24
                     CC_INT64_ARRAY:
                     cmd.Write((Int64[])Value, 0, (byte)((Int64[])Value).Length);
                     break;
+                case CC_FLOAT:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_DOUBLE:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_FLOAT_ARRAY:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_DOUBLE_ARRAY:
+                    throw (new NotImplementedException());
+                    break;
+                case CC_ENUMERATION:
+                    cmd.Write((byte)Value);
+                    break;
+                case CC_ENUMERATION_VALUES:
+                    break;
+                case CC_VOID_FUNCTION:
+                    throw (new NotImplementedException());
+                    break;
             }
             return cmd.getCommand();
         }
@@ -261,6 +322,20 @@ namespace rc24
         static public Type getTypeFromCode(byte code)
         {
             return types[code];
+        }
+        public List<string> GetEnumList()
+        {
+            // TODO tidy. quick fix enumeration values are held in another ccParameter
+            // with an index held in the ArrayLen field
+            ccParameter enumList=Owner.getParamByIdx(ArrayLen);
+            if(enumList!=null && enumList.Value!=null)
+            {
+                return ((string[])(enumList.Value)).ToList();
+            }
+            else 
+            {
+                return new List<string>();
+            }
         }
     }
 }
