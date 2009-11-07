@@ -31,14 +31,14 @@ namespace rc24
         byte[]bin;
         byte crc;
                     
-        public routedUploader()
-        {
-        }
+        public routedUploader() {}
+        
         public void setFile(string filename)
         {
             bin = File.ReadAllBytes(filename);
             filePos=0;
         }
+
         public routedMessage sendNextCmd(routedMessage msg)
         {
             if (filePos >= bin.Length)
@@ -62,7 +62,30 @@ namespace rc24
                     crc ^= bin[i];
                 }
                 filePos += len;
+                
+                // Update main form with % complete
+                if (null != UploadEvent)
+                {
+                    int pcentDone = (int)Math.Ceiling(filePos * 100.0 / bin.Length);
+                    UploadEvent(this, new UploadEventArgs(pcentDone));
+                }
                 return new routedMessage(msg.Route.getReturnRoute(), cmd);
+            }
+        }
+        
+        // Delegate for the classes events
+        public delegate void UploadEventHandler(object sender, UploadEventArgs e);
+        
+        // Events for uploader
+        public event UploadEventHandler UploadEvent;
+        
+        // Arguments for the uploaded event
+        public class UploadEventArgs : EventArgs
+        {
+            public readonly int percentDone;
+            public UploadEventArgs(int newPercentDone)
+            {
+                percentDone = newPercentDone;
             }
         }
     }
