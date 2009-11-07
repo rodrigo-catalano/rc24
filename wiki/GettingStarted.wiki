@@ -1,55 +1,49 @@
 #summary Getting Started Guide.
 
-= Getting Started =
+<wiki:toc max_depth="2" />
 
+= Make some Hardware =
 
+The Jennic modules are complete in the sense that they 'could' be used as delivered but in practice they need to be mounted on a carrier PCB that contains a few extra components such as a voltage regulator and servo connectors.  There are currently two designs for PCB's, see the [http://www.rcgroups.com/forums/showthread.php?t=801036 rcgroups thread] to download them.
 
-== Basic Steps ==
+Be warned that soldering the Jennic modules to the PCB's and adding the required components (all surface mount and very small) is not suited to a novice at soldering.
 
+The Jennic modules and all the extra components are available from Farnell.
+ 
+= Building the code =
 
-* Make some hardware
+The binary files will soon be added to the project but in the meantime you will have to build them (or ask on rcgroups).
 
-* Build or get .bin files
+==RX & TX code ==
 
-* Copy bin files to flash on modules
+To build the Rx and Tx code for the JN5148 modules on a windows pc you will need to download the JN-SW-4041 JN5148 ZBPro SDK Toolchain  and JN-SW-4040 JN5148 ZBPro SDK Libraries from the [http://www.jennic.com/support/software/ Jennic Support Site] and install them.  This will install a copy of the Eclipse IDE.  The IDE is set up to cross-compile the source code to the required machine architecture for the Jennic modules.
 
-* Configure settings on rx and tx
+You will then need to get a copy of the rx and tx source code from the Google Project [http://rc24.googlecode.com/svn/trunk/rc24 svn repository].
 
-* Bind and play.
-
-== Make some Hardware ==
-
-???
-
-== Building the code ==
-
-We will shortly post bin files on the server but in the meantime you will have to build them ( or ask on rcgroups ).
-
-===RX & TX code===
-
-To build the Rx and Tx code for the JN5148 modules on a windows pc you will need to download the JN-SW-4041 JN5148 ZBPro SDK Toolchain  and JN-SW-4040 JN5148 ZBPro SDK Libraries from http://www.jennic.com/support/software/ and install them.  This will install a copy of the eclipse IDE.
-
-You then need to get a copy of the rx and tx source code from the goggle code svn server
-
-http://rc24.googlecode.com/svn/trunk/rc24
-
-To do this with TortoiseSVN.
-Right click on the c:\jennic\application directory in windows explorer and select SVN Checkout.  Fill the dialog in as below and click OK 
+You can use any Subversion client you prefer, probably the easiest for users new to svn is [http://www.tortoisesvn.org TortoiseSVN].
+If you are using TortoiseSVN, right click on the c:\jennic\application directory in Windows Explorer and select SVN Checkout.  Fill the dialog in as below and click OK: 
 
 http://www.ihopper.org/images/checkoutrc24.gif
 
-Then run eclipse and select File/Import then 'Import existing project into Workspace'. Now browse to the c:\jennic\application\rc24 directory and finish.
+Then run Eclipse and select File/Import then 'Import existing project into Workspace'. Now browse to the c:\jennic\application\rc24 directory and finish.
 
-The build all command in the project menu should build the rx and tx bin files.
+The 'Build All' command in the Project menu should build the rx and tx bin files.
 
-===PC Code===
+== PC Code ==
 
-There is a pc program which is used to program the modules and configure them.
-The code is in the svn repository at
-http://rc24.googlecode.com/svn/trunk/rc24_pc
-This can be downloaded in the same way as above to anywhere on your pc.  To build the code you will need a copy of microsoft visual c# express 2008 (free from http://www.microsoft.com/express/vcsharp/ )
-In visual c# select file/open project and select the rc24_pc.sln file from wherever you downloaded the project to.
+There is a pc program which is used to program the modules and configure them with some basic diagnostic info.
+The code is in the [http://rc24.googlecode.com/svn/trunk/rc24_pc svn repository] and can be downloaded in the same way as above to  a suitable location on your hard drive.
+
+To build the code you will need a C# IDE, any of the MS Visual Studio 2008 releases will suffice, you can get a free copy of [http://www.microsoft.com/express/vcsharp/ Microsoft Visual C# 2008 Express] or use the open source [http://www.icsharpcode.net/OpenSource/SD/ SharpDevelop 3.1].  The project has been compiled succesfully with Visual Studio Professional 2008, Visual C# 2008 Express and !SharpDevelop 3.1.
+
+To build the application, start the IDE and from the menu select File | Open project and choose the rc24_pc.sln file from the files you checked out earlier.  From the Build menu choose the appropriate build configuration (Debug or Release) and build the solution.  The resulting executable (Serial.exe) can be run straight from the IDE or you can locate the file in the Debug or Release directories as appropriate and run it from there.
  
-==Flashing code to Modules==
+= Flashing code to Modules =
 
-The bin files can be installed on the modules either with jennic's flash programming utility or our pc app.  These instructions are for the pc app.
+The bin files can be installed on the modules either with Jennic's flash programming utility or the PC app.  You will need a serial TTL level interface for your PC to connect it to the modules, again these can be obtained from Farnell.  You will need to know the Com Port used by your interface.
+
+These instructions are for the PC app, connect either the tx or rx to the pc with the serial interface connected to the appropriate pins on the PCB. 
+
+Start the app, and from the Tools menu, select the 'Options...' item.  Using the file browser buttons select the appropriate bin files for the modules, and the correct COM Port.  Click 'OK' to close the dialog which will save the settings.
+
+On the main window if the button next to the port droplist shows as 'Connect' then click it, else click it once to make it display 'Connect' and then click it again to connect.  This ensures a connection to the module via the serial port.  Click the 'Refresh Tree' button and the tree display should show the PC node, click the '+' expander and the module should then be listed.  Select the module in the tree and the 'Upload Node' button should be displayed in the right hand info pane for the node.  Click the button and the upload should start and when complete reset the module automatically when complete. 
