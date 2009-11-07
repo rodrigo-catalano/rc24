@@ -112,6 +112,8 @@ void storeSettings(void);
 void loadSettings(void);
 void loadRadioSettings(store* s);
 void saveRadioSettings(store* s);
+void loadGeneralSettings(store* s);
+void saveGeneralSettings(store* s);
 
 void loadDefaultSettings(void);
 
@@ -119,7 +121,6 @@ void sleep(void);
 
 void enableModelComs(void);
 void txSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon);
-
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -190,11 +191,14 @@ int joystickGain[4];
 
 #define PS2INPUT 0
 #define ADINPUT 1
-#define PWMINPUT 2
-#define NUNCHUCKINPUT 3
-#define PPMINPUT 4
+#define NUNCHUCKINPUT 2
+#define PPMINPUT 3
+#define SERIALINPUT 4
 
-int inputMethod = ADINPUT;
+char* defaultInputEnumValues[] =
+{ "PS2", "Custom", "WII Nunchuck", "PPM", "Serial" };
+
+uint8 inputMethod = ADINPUT;
 
 volatile uint32 sendTime;
 uint32 radioRange;
@@ -233,17 +237,16 @@ pcCom pccoms;
 uint32 dbgmsgtimestart;
 uint32 dbgmsgtimeend;
 
-uint8 testparam = 3;
-int testparam2 = 6543;
 //list of parameters that can be read or set by connected devices
 //either by direct access to variable or through getters and setters
 //their command id is defined by position in the list
 ccParameter exposedParameters[] =
 {
-{ "testuint8", CC_UINT8, &testparam, 0 },
-{ "testint", CC_INT32, &testparam2, 0 },
 { "High Power Module", CC_BOOL, &useHighPowerModule, 0 },
-{ "TX Demands", CC_UINT16_ARRAY, txInputs, sizeof(txInputs)
+{ "Default Input", CC_ENUMERATION, &inputMethod, 2 },
+{ "Input Enum", CC_ENUMERATION_VALUES, defaultInputEnumValues,
+		sizeof(defaultInputEnumValues) / sizeof(defaultInputEnumValues[0]) },
+{ "TX Inputs", CC_UINT16_ARRAY, txInputs, sizeof(txInputs)
 		/ sizeof(txInputs[0]) } };
 
 ccParameterList parameterList =
@@ -337,7 +340,6 @@ PUBLIC void AppColdStart(void)
 
 	vInitSystem();
 
-
 	setRadioDataCallback(txHandleRoutedMessage, CONRX);
 
 	vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
@@ -350,52 +352,52 @@ PUBLIC void AppColdStart(void)
 
 	pcComsPrintf("lcd init done \r\n");
 
-
 	initGUI();
 	refreshGUI();
 
-	//try to auto detect input source
-
-	if (initPS2Controller(&ps2) == TRUE)
+	// setup for selected input device
+	switch (inputMethod)
 	{
-		inputMethod = PS2INPUT;
-		// select model by holding down fire buttons at startup
-		pcComsPrintf("ps2\r\n");
-
-		readPS2Controller(&ps2);
-
-		if (ps2.LFire1)
-			activeModel = 1;
-		if (ps2.LFire2)
-			activeModel = 2;
-		if (ps2.RFire1)
-			activeModel = 3;
-		if (ps2.RFire2)
-			activeModel = 4;
-
-		//wait for button release
-		while (ps2.LFire1 || ps2.LFire2 || ps2.RFire1 || ps2.RFire2)
+	case PS2INPUT:
+		if (initPS2Controller(&ps2) == TRUE)
 		{
+			// select model by holding down fire buttons at startup
+			pcComsPrintf("ps2\r\n");
+
 			readPS2Controller(&ps2);
+
+			if (ps2.LFire1)
+				activeModel = 1;
+			if (ps2.LFire2)
+				activeModel = 2;
+			if (ps2.RFire1)
+				activeModel = 3;
+			if (ps2.RFire2)
+				activeModel = 4;
+
+			//wait for button release
+			while (ps2.LFire1 || ps2.LFire2 || ps2.RFire1 || ps2.RFire2)
+			{
+				readPS2Controller(&ps2);
+			}
 		}
-	}
-	else
-	{
-		//no ps2 so try to detect wii nunchuck on i2c bus
+		break;
+
+	case NUNCHUCKINPUT:
 		if (initWiiController(&wii) == TRUE)
 		{
 			readWiiController(&wii);
-			inputMethod = NUNCHUCKINPUT;
 			pcComsPrintf("nunchuck\r\n");
 		}
-		else
-			inputMethod = PPMINPUT;//ADINPUT;
+		break;
+	case ADINPUT:
+		break;
 
-		inputMethod = ADINPUT;
-	}
-	if (inputMethod == PPMINPUT)
-	{
+	case PPMINPUT:
 		initPpmInput(E_AHI_TIMER_0);
+		break;
+	case SERIALINPUT:
+		break;
 
 	}
 
@@ -409,15 +411,6 @@ PUBLIC void AppColdStart(void)
 		pcComsPrintf("No Touchscreen %d \r\n", touchScreen.x);
 
 	}
-	/*
-	 while(1==1)
-	 {
-	 readTsc2003(&touchScreen);
-	 pcComsPrintf("tsc %d %d %d \r\n",touchScreen.x,touchScreen.y,touchScreen.pressure);
-	 cycleDelay(16*1000*500);
-	 }
-
-	 */
 
 	//use mac address of rx to seed random hopping sequence
 	randomizeHopSequence(liveModel.rxMACh ^ liveModel.rxMACl);
@@ -1442,8 +1435,10 @@ PRIVATE void vCreateAndSendFrame(void)
 	case PPMINPUT:
 	{
 		ppmRead(txInputs);
-
+		break;
 	}
+	case SERIALINPUT:
+		break;
 	}
 
 	//do mixing
@@ -1613,7 +1608,6 @@ void storeSettings()
 	//todo untested on JN5148
 	pcComsPrintf("Store settings\r\n");
 
-
 	store s;
 	store old;
 	store* pold;
@@ -1632,6 +1626,7 @@ void storeSettings()
 
 	//   pcComsPrintf("s %d %d %d",s.base,old.base,old.size);
 
+	saveGeneralSettings(&s);
 	saveRadioSettings(&s);
 	storeModels(&s, &liveModel, pold, liveModelIdx);
 
@@ -1668,8 +1663,7 @@ void loadSettings()
 				break;
 
 			case STOREGENERALSECTION:
-
-
+				loadGeneralSettings(&section);
 				break;
 
 			}
@@ -1682,6 +1676,30 @@ void loadSettings()
 	if (numModels == 0)
 		loadDefaultSettings();
 
+}
+void loadGeneralSettings(store* s)
+{
+	store section;
+	int tag;
+	while ((tag = storeGetSection(s, &section)) > 0)
+	{
+		switch (tag)
+		{
+		case STOREDEFAULTINPUT:
+			inputMethod=readUint8(&section);
+			break;
+		}
+	}
+
+}
+void saveGeneralSettings(store* s)
+{
+	store section;
+	storeStartSection(s, STOREGENERALSECTION, &section);
+
+	storeUint8Section(&section, STOREDEFAULTINPUT, (uint8)inputMethod);
+
+	storeEndSection(s, &section);
 }
 void loadRadioSettings(store* s)
 {
@@ -1703,10 +1721,12 @@ void loadRadioSettings(store* s)
 void saveRadioSettings(store* s)
 {
 	store section;
-	storeStartSection(s,STORERADIOSECTION,&section);
-	if(useHighPowerModule==TRUE) storeUint8Section(&section,STORERADIOHIGHPOWER,0);
-	else storeUint8Section(&section,STORERADIOHIGHPOWER,1);
-	storeEndSection(s,&section);
+	storeStartSection(s, STORERADIOSECTION, &section);
+	if (useHighPowerModule == TRUE)
+		storeUint8Section(&section, STORERADIOHIGHPOWER, 0);
+	else
+		storeUint8Section(&section, STORERADIOHIGHPOWER, 1);
+	storeEndSection(s, &section);
 }
 void loadDefaultSettings()
 {

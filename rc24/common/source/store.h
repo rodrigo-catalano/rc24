@@ -26,6 +26,8 @@ Copyright 2008 - 2009 © Alan Hopper
 
 //tx store section defines
 #define STOREGENERALSECTION 1
+#define STOREDEFAULTINPUT (1 | STOREINT8)
+
 #define STORERADIOSECTION 2
 #define STORERADIOHIGHPOWER (1 | STOREINT8)
 
