@@ -254,6 +254,21 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			break;
 		case CC_INT64_ARRAY:
 			break;
+		case CC_FLOAT:
+			break;
+		case CC_DOUBLE:
+			break;
+		case CC_FLOAT_ARRAY:
+			break;
+		case CC_DOUBLE_ARRAY:
+			break;
+		case CC_ENUMERATION:
+			*((uint8*) paramPtr) = inMsg[2];
+			break;
+		case CC_ENUMERATION_VALUES:
+			break;
+		case CC_VOID_FUNCTION:
+			break;
 		}
 	}
 	else
@@ -288,6 +303,7 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 	outMsg[retlen++] = inMsg[1];
 	uint8 start=0;
 	uint8 len=0;
+	uint8 idx;
 
 	ccParameter* param = &paramList->parameters[inMsg[1]];
 	//if direct access to variable
@@ -301,6 +317,7 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			else outMsg[retlen++] =0x01;
 			break;
 		case CC_STRING:
+			retlen = 0;
 			break;
 		case CC_UINT8:
 			outMsg[retlen++] = *((uint8*) paramPtr);
@@ -321,16 +338,22 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			retlen+=ccWriteInt32(&outMsg[retlen],*((int32*) paramPtr));
 			break;
 		case CC_UINT64:
+			retlen = 0;
 			break;
 		case CC_INT64:
+			retlen = 0;
 			break;
 		case CC_BOOL_ARRAY:
+			retlen = 0;
 			break;
 		case CC_STRING_ARRAY:
+			retlen = 0;
 			break;
 		case CC_UINT8_ARRAY:
+			retlen = 0;
 			break;
 		case CC_INT8_ARRAY:
+			retlen = 0;
 			break;
 		case CC_UINT16_ARRAY:
 			start=inMsg[2];
@@ -338,18 +361,53 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			outMsg[retlen++] =start;
 			outMsg[retlen++] =len;
 			memcpy(&outMsg[retlen],(uint16*) paramPtr+start,len*2);
-			retlen+=40;
+			retlen+=len*2;
 			break;
 		case CC_INT16_ARRAY:
+			retlen = 0;
 			break;
 		case CC_UINT32_ARRAY:
+			retlen = 0;
 			break;
 		case CC_INT32_ARRAY:
+			retlen = 0;
 			break;
 		case CC_UINT64_ARRAY:
+			retlen = 0;
 			break;
 		case CC_INT64_ARRAY:
+			retlen = 0;
 			break;
+		case CC_FLOAT:
+			retlen = 0;
+			break;
+		case CC_DOUBLE:
+			retlen = 0;
+			break;
+		case CC_FLOAT_ARRAY:
+			retlen = 0;
+			break;
+		case CC_DOUBLE_ARRAY:
+			retlen = 0;
+			break;
+		case CC_ENUMERATION:
+			outMsg[retlen++] = *((uint8*) paramPtr);
+			break;
+		case CC_ENUMERATION_VALUES:
+			start=inMsg[2];
+			len=inMsg[3];
+			outMsg[retlen++] =start;
+			outMsg[retlen++] =len;
+			idx=start;
+			while(idx<len+start)
+			{
+				retlen+=ccWriteString(&outMsg[retlen],((char**)paramPtr)[idx++]);
+			}
+			break;
+		case CC_VOID_FUNCTION:
+			retlen = 0;
+			break;
+
 
 		}
 	}
