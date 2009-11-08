@@ -4,11 +4,15 @@
 
 = Make some Hardware =
 
-The Jennic modules are complete in the sense that they 'could' be used as delivered but in practice they need to be mounted on a carrier PCB that contains a few extra components such as a voltage regulator and servo connectors.  There are currently two designs for PCB's, see the [http://www.rcgroups.com/forums/showthread.php?t=801036 rcgroups thread] to download them.
+The Jennic modules are complete in the sense that they 'could' be used as delivered but in practice they need to be mounted on a carrier PCB that contains a few extra components such as a voltage regulator and servo connectors.  There are currently three designs for PCB's (2 rx's & 1 tx), see the [http://www.rcgroups.com/forums/showthread.php?t=801036 rcgroups thread] to download them.  The two receiver designs can also be used as transmitters.
 
 Be warned that soldering the Jennic modules to the PCB's and adding the required components (all surface mount and very small) is not suited to a novice at soldering.
 
 The Jennic modules and all the extra components are available from Farnell.
+
+Jennic do sell development kits that could be used for a quick start if money is no object.
+
+The first prototypes were made simply by soldering small wires direct to the modules, this is not recommended, but does work.
  
 = Building the code =
 
@@ -40,10 +44,23 @@ To build the application, start the IDE and from the menu select File | Open pro
  
 = Flashing code to Modules =
 
-The bin files can be installed on the modules either with Jennic's flash programming utility or the PC app.  You will need a serial TTL level interface for your PC to connect it to the modules, again these can be obtained from Farnell.  You will need to know the Com Port used by your interface.
+The bin files can be installed on the modules either with Jennic's flash programming utility or the PC app.  You will need a serial TTL level interface for your PC to connect it to the modules, again these can be obtained from Farnell.  
+[http://uk.farnell.com/jsp/displayProduct.jsp?sku=1329311&CMP=KNC-GUK-FUK-GEN-SKU-OTH FTDI usb serial cable]
+[http://www.pololu.com/catalog/product/391 Pololu usb serial if]
+[http://www.pololu.com/catalog/product/1300 Pololu usb serial/avr programmer]
+
+You will need to know the Com Port used by your interface.
 
 These instructions are for the PC app, connect either the tx or rx to the pc with the serial interface connected to the appropriate pins on the PCB. 
 
 Start the app, and from the Tools menu, select the 'Options...' item.  Using the file browser buttons select the appropriate bin files for the modules, and the correct COM Port.  Click 'OK' to close the dialog which will save the settings.
 
-On the main window if the button next to the port droplist shows as 'Connect' then click it, else click it once to make it display 'Connect' and then click it again to connect.  This ensures a connection to the module via the serial port.  Click the 'Refresh Tree' button and the tree display should show the PC node, click the '+' expander and the module should then be listed.  Select the module in the tree and the 'Upload Node' button should be displayed in the right hand info pane for the node.  Click the button and the upload should start and when complete reset the module automatically when complete. 
+On the main window if the button next to the port droplist shows as 'Connect' then click it, else click it once to make it display 'Connect' and then click it again to connect.  This ensures a connection to the module via the serial port.  
+
+The first time you flash the modules they need to be put in 'bootloader mode'. This is done by connecting the miso pin on the module to ground and powering up, the short to ground should then be removed. The 'bootload prog tx' or 'bootload prog rx' buttons can then be used to program the module.  After initial programming, the module needs to be powered down and up to run the new software. You should see messages displayed in the text box at the bottom of the app when you power up the programmed modules.
+
+Further reprogramming does not require the module to be put in 'bootloader mode' as the rc24 software has code update built in (over the radio link if needed). To do this click the 'Refresh Tree' button and the tree display should show the PC node, click the '+' expander and the module should then be listed.  Select the module in the tree and the 'Upload Node' button should be displayed in the right hand info pane for the node.  Click the button and the upload should start and when complete reset the module automatically when complete. 
+
+With a programmed tx module connected you should see something like this
+
+http://www.ihopper.org/images/serialtx.gif
