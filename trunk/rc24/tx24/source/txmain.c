@@ -54,6 +54,8 @@
 #include "gui_walnut.h"
 #include "commonCommands.h"
 
+#include "exceptions.h"
+
 /* Data type for storing data related to all end devices that have associated */
 typedef struct
 {
@@ -252,58 +254,6 @@ ccParameter exposedParameters[] =
 ccParameterList parameterList =
 { exposedParameters, sizeof(exposedParameters) / sizeof(exposedParameters[0]) };
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
-#define BUS_ERROR *((volatile uint32 *)(0x4000000))
-#define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000008))
-#define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x40000C0))
-#else
-#define BUS_ERROR *((volatile uint32 *)(0x4000008))
-#define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000018))
-#define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x400001C))
-#endif
-
-// event handler function prototypes
-PUBLIC void vBusErrorhandler(void);
-PUBLIC void vUnalignedAccessHandler(void);
-PUBLIC void vIllegalInstructionHandler(void);
-
-PUBLIC void vBusErrorhandler(void)
-{
-	volatile uint32 u32BusyWait = 1600000;
-	// log the exception
-	pcComsPrintf("Bus Error Exception");
-	// wait for the UART write to complete
-
-	while (u32BusyWait--)
-	{
-	}
-
-	vAHI_SwReset();
-}
-PUBLIC void vUnalignedAccessHandler(void)
-{
-	volatile uint32 u32BusyWait = 1600000;
-	// log the exception
-	pcComsPrintf("Unaligned Error Exception");
-	// wait for the UART write to complete
-	while (u32BusyWait--)
-	{
-	}
-
-	vAHI_SwReset();
-}
-PUBLIC void vIllegalInstructionHandler(void)
-{
-	volatile uint32 u32BusyWait = 1600000;
-	// log the exception
-	pcComsPrintf("Illegal Instruction Error Exception");
-	// wait for the UART write to complete
-	while (u32BusyWait--)
-	{
-	}
-
-	vAHI_SwReset();
-}
 
 /****************************************************************************
  *
@@ -340,15 +290,22 @@ PUBLIC void AppColdStart(void)
 
 	vInitSystem();
 
+	setExceptionHandlers();
+
 	setRadioDataCallback(txHandleRoutedMessage, CONRX);
 
 	vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
 
-	BUS_ERROR = (uint32) vBusErrorhandler;
-	UNALIGNED_ACCESS = (uint32) vUnalignedAccessHandler;
-	ILLEGAL_INSTRUCTION = (uint32) vIllegalInstructionHandler;
 
 	pcComsPrintf("tx24 2.11 \r\n");
+
+	//check for reset caused by exception and report
+	resetType rt=getResetReason();
+	if(rt!=NOEXCEPTION)
+	{
+		pcComsPrintf("EXCEPTION %d \r\n",rt);
+	}
+
 
 	pcComsPrintf("lcd init done \r\n");
 

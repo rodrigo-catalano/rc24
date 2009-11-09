@@ -104,6 +104,7 @@ APPSRC += hwutils.c
 APPSRC += codeUpdate.c
 APPSRC += gui_walnut.c
 APPSRC += commonCommands.c
+APPSRC += exceptions.c
 
 APPSRC += AppQueueApi.c
 

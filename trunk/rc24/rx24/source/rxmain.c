@@ -40,6 +40,7 @@
 #include "codeupdate.h"
 #include "radiocoms.h"
 #include "commonCommands.h"
+#include "exceptions.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -183,118 +184,7 @@ void dbgPrintf(const char *fmt, ...)
 	buf[2] = ret;
 	rxSendRoutedMessage((uint8*) buf, ret + 3, debugCon);
 }
-// Exception handling
-// TODO put in common file, remove debug stuff and try to report exception on restart
-// on the JN5148 the pulse counter values are preserved across reset so can be used to
-// send messages from the grave. There may be other ways.
 
-// Exception handler function addresses
-#if (JENNIC_CHIP_FAMILY == JN514x)
-#define BUS_ERROR *((volatile uint32 *)(0x4000000))
-#define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000008))
-#define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x40000C0))
-#else
-#define BUS_ERROR *((volatile uint32 *)(0x4000008))
-#define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000018))
-#define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x400001C))
-#endif
-
-/****************************************************************************
- *
- * NAME: vBusErrorhandler
- *
- * DESCRIPTION: Handler for a bus error exception
- *
- *
- * PARAMETERS:      Name            RW  Usage
- *
- *
- * RETURNS:
- *
- *
- * NOTES:
- * None.
- ****************************************************************************/
-PUBLIC void vBusErrorhandler(void)
-{
-	// Delay counter to allow output to complete
-	volatile uint32 u32BusyWait = 1600000;
-
-	// log the exception
-	dbgPrintf("\nBus Error Exception");
-
-	// wait for the UART write to complete
-	while (u32BusyWait--)
-	{
-	}
-
-	// Force a reset
-	vAHI_SwReset();
-}
-
-/****************************************************************************
- *
- * NAME: vUnalignedAccessHandler
- *
- * DESCRIPTION: Handler for the unaligned access exception
- *
- *
- * PARAMETERS:      Name            RW  Usage
- *
- *
- * RETURNS:
- *
- *
- * NOTES:
- * None.
- ****************************************************************************/
-PUBLIC void vUnalignedAccessHandler(void)
-{
-	// Delay counter to allow output to complete
-	volatile uint32 u32BusyWait = 1600000;
-
-	// log the exception
-	dbgPrintf("\nUnaligned Error Exception");
-	// wait for the UART write to complete
-	while (u32BusyWait--)
-	{
-	}
-
-	// Force a reset
-	vAHI_SwReset();
-}
-
-/****************************************************************************
- *
- * NAME: vIllegalInstructionHandler
- *
- * DESCRIPTION: Handler for the illegal instruction exception
- *
- *
- * PARAMETERS:      Name            RW  Usage
- *
- *
- * RETURNS:
- *
- *
- * NOTES:
- * None.
- ****************************************************************************/
-PUBLIC void vIllegalInstructionHandler(void)
-{
-	// Delay counter to allow output to complete
-	volatile uint32 u32BusyWait = 1600000;
-
-	// log the exception
-	dbgPrintf("\nIllegal Instruction Error Exception");
-	// wait for the UART write to complete
-	while (u32BusyWait--)
-	{
-	}
-
-	// Force a reset
-	vAHI_SwReset();
-}
 
 /****************************************************************************
  *
@@ -333,9 +223,8 @@ PUBLIC void AppColdStart(void)
 	}
 
 	// set up the exception handlers
-	BUS_ERROR = (uint32) vBusErrorhandler;
-	UNALIGNED_ACCESS = (uint32) vUnalignedAccessHandler;
-	ILLEGAL_INSTRUCTION = (uint32) vIllegalInstructionHandler;
+	setExceptionHandlers();
+
 
 
 	// Initialise the clock
@@ -348,6 +237,12 @@ PUBLIC void AppColdStart(void)
 
 	// Send init string to PC
 	dbgPrintf("rx24 2.10 ");
+
+	resetType rt=getResetReason();
+	if(rt!=NOEXCEPTION)
+	{
+		dbgPrintf("EXCEPTION %d \r\n",rt);
+	}
 
 	// Load the receiver settings
 	loadSettings();
