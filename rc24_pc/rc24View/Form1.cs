@@ -28,6 +28,7 @@ using System.Windows.Forms;
 using System.IO.Ports;
 using System.IO;
 using System.Threading;
+using System.Diagnostics;
 using rc24;
 
 /* This communicates with jennic modules through a logic level serial port.
@@ -99,6 +100,7 @@ namespace Serial
             {
                 routedMessage msgValSet = new routedMessage(activeNode.address, cmd);
                 SendRoutedMessage(msgValSet, SERIALCON);
+                Debug.WriteLine(activeNode.name + ": set parameter: " + paramName + " to: " + param.Value.ToString());
             }
         }
         
@@ -310,7 +312,7 @@ namespace Serial
             
             // Hook-up the port data handler
             serEh = new SerialDataReceivedEventHandler(inp_DataReceived);
-            inp.DataReceived += new SerialDataReceivedEventHandler(inp_DataReceived);
+            inp.DataReceived += serEh;
             
             // Attempt to open the port
             try
@@ -405,7 +407,7 @@ namespace Serial
             routedMessage msg = new routedMessage(buff, offset, len);
 
             //see if packet has reached its destination
-            if (msg.Route.isForMe())//no to addresses
+            if (msg.Route.isForMe()) //no to addresses
             {
                 switch (msg.commandByte)
                 {
@@ -454,8 +456,7 @@ namespace Serial
                                     }
                                 }
                                 rUpload.setFile(filename);
-                                // Instantiate the progress dialog
-                                ulProg = new UploadProgress(rUpload);
+                                // Let the user see the progress
                                 ulProg.Show();
                                     
                                 routedMessage reply = rUpload.sendNextCmd(msg);
@@ -528,6 +529,14 @@ namespace Serial
                                 routedMessage msgGetMeta = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x6, (byte)activeNode.properties.Count });
                                 SendRoutedMessage(msgGetMeta, SERIALCON);
                             }
+                            break;
+                        }
+                    case 0x02: // Set parameter response
+                        {
+                            commandReader reader = msg.getReader();
+                            reader.ReadByte();  // Skip Command code
+                            bool response = !reader.ReadBoolean();
+                            Debug.WriteLine(activeNode.name + ": Parameter set: " + response.ToString());
                             break;
                         }
                 }
@@ -608,6 +617,8 @@ namespace Serial
         private void buttonUploadCode_Click(object sender, EventArgs e)
         {
             rUpload = new routedUploader();            
+            // Instantiate the progress dialog for the uploader
+            ulProg = new UploadProgress(rUpload);
             routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x90 });
             SendRoutedMessage(msg, SERIALCON);
         }

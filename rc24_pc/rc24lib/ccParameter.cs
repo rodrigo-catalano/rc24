@@ -186,7 +186,13 @@ namespace rc24
                     throw (new NotImplementedException());
                     break;
                 case CC_INT32_ARRAY:
-                    throw (new NotImplementedException());
+                    //TODO currently wrongly assume whole array is always sent
+                    //TODO send array total length with metadata
+                    startIdx = reader.ReadByte();
+                    len = reader.ReadByte();
+                    Int32[] val32Array = new Int32[len];
+                    for (int i = 0; i < len; i++) val32Array[i] = reader.ReadInt32();
+                    Value = val32Array;
                     break;
                 case CC_UINT64_ARRAY:
                     throw (new NotImplementedException());
