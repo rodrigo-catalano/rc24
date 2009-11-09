@@ -92,8 +92,7 @@ PRIVATE void vProcessIncomingMcps(MAC_McpsDcfmInd_s *psMcpsInd);
 PRIVATE void vProcessIncomingHwEvent(AppQApiHwInd_s *psAHI_Ind);
 PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd);
 PRIVATE void vHandleMcpsDataDcfm(MAC_McpsDcfmInd_s *psMcpsInd);
-PRIVATE void
-		vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr);
+PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr);
 
 PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len);
 PRIVATE uint16 u16ReadADCAverage(uint8 channel);
@@ -160,7 +159,7 @@ ps2ControllerOp ps2;
 WiiController wii;
 tsc2003 touchScreen;
 
-//times in micro seconds
+// Times in micro seconds
 uint32 hopPeriod = 20000;
 uint32 framePeriod = 20000;
 uint8 subFrameIdx = 0;
@@ -196,9 +195,10 @@ int joystickGain[4];
 #define NUNCHUCKINPUT 2
 #define PPMINPUT 3
 #define SERIALINPUT 4
+#define RAWINPUT 5
 
 char* defaultInputEnumValues[] =
-{ "PS2", "Custom", "WII Nunchuck", "PPM", "Serial" };
+{ "PS2", "Custom", "WII Nunchuck", "PPM", "Serial", "Raw" };
 
 uint8 inputMethod = ADINPUT;
 
@@ -244,12 +244,13 @@ uint32 dbgmsgtimeend;
 //their command id is defined by position in the list
 ccParameter exposedParameters[] =
 {
-{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 },
-{ "Default Input", CC_ENUMERATION, &inputMethod, 2 },
-{ "Input Enum", CC_ENUMERATION_VALUES, defaultInputEnumValues,
+	{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 },
+	{ "Default Input", CC_ENUMERATION, &inputMethod, 2 },
+	{ "Input Enum", CC_ENUMERATION_VALUES, defaultInputEnumValues,
 		sizeof(defaultInputEnumValues) / sizeof(defaultInputEnumValues[0]) },
-{ "TX Inputs", CC_UINT16_ARRAY, txInputs, sizeof(txInputs)
-		/ sizeof(txInputs[0]) } };
+	{ "TX Inputs", CC_INT32_ARRAY, txInputs, sizeof(txInputs) / sizeof(txInputs[0]) },
+	{ "TX Demands", CC_INT32_ARRAY, txDemands, sizeof(txDemands) / sizeof(txDemands[0]) }
+};
 
 ccParameterList parameterList =
 { exposedParameters, sizeof(exposedParameters) / sizeof(exposedParameters[0]) };
@@ -316,46 +317,51 @@ PUBLIC void AppColdStart(void)
 	switch (inputMethod)
 	{
 	case PS2INPUT:
-		if (initPS2Controller(&ps2) == TRUE)
+	if (initPS2Controller(&ps2) == TRUE)
+	{
+		// select model by holding down fire buttons at startup
+		pcComsPrintf("ps2 input\r\n");
+
+		readPS2Controller(&ps2);
+
+		if (ps2.LFire1)
+			activeModel = 1;
+		if (ps2.LFire2)
+			activeModel = 2;
+		if (ps2.RFire1)
+			activeModel = 3;
+		if (ps2.RFire2)
+			activeModel = 4;
+
+		//wait for button release
+		while (ps2.LFire1 || ps2.LFire2 || ps2.RFire1 || ps2.RFire2)
 		{
-			// select model by holding down fire buttons at startup
-			pcComsPrintf("ps2\r\n");
-
 			readPS2Controller(&ps2);
-
-			if (ps2.LFire1)
-				activeModel = 1;
-			if (ps2.LFire2)
-				activeModel = 2;
-			if (ps2.RFire1)
-				activeModel = 3;
-			if (ps2.RFire2)
-				activeModel = 4;
-
-			//wait for button release
-			while (ps2.LFire1 || ps2.LFire2 || ps2.RFire1 || ps2.RFire2)
-			{
-				readPS2Controller(&ps2);
-			}
 		}
+	}
 		break;
 
 	case NUNCHUCKINPUT:
 		if (initWiiController(&wii) == TRUE)
 		{
 			readWiiController(&wii);
-			pcComsPrintf("nunchuck\r\n");
+			pcComsPrintf("nunchuck input\r\n");
 		}
 		break;
 	case ADINPUT:
+		pcComsPrintf("AD input\r\n");
 		break;
-
 	case PPMINPUT:
 		initPpmInput(E_AHI_TIMER_0);
+		pcComsPrintf("ppm input\r\n");
 		break;
 	case SERIALINPUT:
+		pcComsPrintf("serial input\r\n");
 		break;
-
+	case RAWINPUT:
+		// Do nothing
+		pcComsPrintf("raw input\r\n");
+		break;
 	}
 
 	if (initTsc2003(&touchScreen, 0x48, 723, 196) == TRUE)
@@ -366,7 +372,6 @@ PUBLIC void AppColdStart(void)
 	else
 	{
 		pcComsPrintf("No Touchscreen %d \r\n", touchScreen.x);
-
 	}
 
 	//use mac address of rx to seed random hopping sequence
@@ -453,16 +458,12 @@ PUBLIC void AppColdStart(void)
 	msg[0] = 0;
 	msg[1] = 0;//0xff;
 
-
 	//   txSendRoutedMessage(msg,2, CONRX);
-
 
 	while (1)
 	{
 		vProcessEventQueues();
-
 	}
-
 }
 
 /****************************************************************************
@@ -478,7 +479,7 @@ PUBLIC void AppColdStart(void)
  ****************************************************************************/
 PUBLIC void AppWarmStart(void)
 {
-	//check for wake up actions - do as fast as possible to save power
+	// Check for wake up actions - do as fast as possible to save power
 	touchScreen.addr = 0x48;
 
 	if (pressedTsc2003(&touchScreen))
@@ -496,10 +497,8 @@ PUBLIC void AppWarmStart(void)
 
 		vAHI_WakeTimerEnable(E_AHI_WAKE_TIMER_0, TRUE);
 		vAHI_WakeTimerStart(E_AHI_WAKE_TIMER_0, 32* 1000* 5 ) ;//5 second wakeup
-vAHI_Sleep		(E_AHI_SLEEP_OSCON_RAMON);
-
+		vAHI_Sleep(E_AHI_SLEEP_OSCON_RAMON);
 	}
-
 }
 
 /****************************************************************************/
@@ -828,8 +827,8 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		if (rxLinkQuality > 180)
 			flightTimer = 0;
 	}
-
 }
+
 void txSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 {
 	switch (toCon)
@@ -971,7 +970,7 @@ void rxComsSendRoutedPacket(uint8* msg, int offset, uint8 len)
  ****************************************************************************/
 PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 {
-	//back channel from rx - getting very messy!
+	// Back channel from rx - getting very messy!
 
 	uint8 PriorityDataLen = pu8Data[0];
 	totalRxFrames++;
@@ -984,7 +983,7 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 	}
 	else
 	{
-		if (PriorityDataLen == 3)//16bit data
+		if (PriorityDataLen == 3) // 16 bit data
 		{
 			if (pu8Data[1] == 6)
 			{
@@ -1040,7 +1039,6 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 		handleLowPriorityData(pu8Data + PriorityDataLen + 1, u8Len
 				- PriorityDataLen - 1);
 	}
-
 }
 
 PRIVATE void GetNextChannel()
@@ -1262,6 +1260,7 @@ PRIVATE uint16 u16ReadADCAverage(uint8 channel)
 	}
 	return (ret >> 2); /* return result */
 }
+
 /****************************************************************************
  *
  * NAME: vCreateAndSendFrame
@@ -1395,21 +1394,30 @@ PRIVATE void vCreateAndSendFrame(void)
 		break;
 	}
 	case SERIALINPUT:
+		// Do nothing
+		break;
+	case RAWINPUT:
+		// Do nothing
 		break;
 	}
 
-	//do mixing
-
-	doMixingEx(txInputs, txDemands, &liveModel);
+	// Do mixing
+	if (inputMethod == RAWINPUT)
+	{
+		// No input device or mixing, just raw
+		memcpy(txDemands, txInputs, sizeof(txDemands) / sizeof(txDemands[0]));
+	}
+	else
+	{
+		doMixingEx(txInputs, txDemands, &liveModel);
+	}
 
 	//    vPrintf("%d %d  \r",txDemands[0],txDemands[1]);
 
-
-	//pack into packet
+	// Pack into packet
 	au8Packet[2] = txDemands[0] & 0x00ff;
 	au8Packet[3] = ((txDemands[0] & 0x0f00) >> 4) + (txDemands[1] & 0x000f);
 	au8Packet[4] = (txDemands[1] & 0x0ff0) >> 4;
-
 	au8Packet[5] = txDemands[2] & 0x00ff;
 	au8Packet[6] = ((txDemands[2] & 0x0f00) >> 4) + (txDemands[3] & 0x000f);
 	au8Packet[7] = (txDemands[3] & 0x0ff0) >> 4;
@@ -1418,7 +1426,7 @@ PRIVATE void vCreateAndSendFrame(void)
 			+ (txDemands[currentAuxChannel] & 0x000f);
 	au8Packet[9] = (txDemands[currentAuxChannel] & 0x0ff0) >> 4;
 
-	//set packet time in 0.01ms units - just fits in 16 bits
+	// Set packet time in 0.01ms units - just fits in 16 bits
 	int t = (u32AHI_TickTimerRead() + sCoordinatorData.u8ChannelSeqNo
 			* hopPeriod * 16) / 160;
 	au8Packet[0] = t & 0x00FF;
@@ -1427,7 +1435,6 @@ PRIVATE void vCreateAndSendFrame(void)
 	PacketDone = 0;
 
 	vTransmitDataPacket(au8Packet, PAYLOAD_SIZE, 1);
-
 }
 
 void toggleBackLight(clickEventArgs* clickargs)
@@ -1442,6 +1449,7 @@ void toggleBackLight(clickEventArgs* clickargs)
 		setBacklight(255);
 	}
 }
+
 void setBacklight(uint8 bri)
 {
 	backlight = bri;
@@ -1457,7 +1465,6 @@ void setBacklight(uint8 bri)
 
 void updateDisplay()
 {
-
 	//   txbat=u16ReadADC(E_AHI_ADC_SRC_VOLT);//3838 4096 = 2.4*1.5 =3.6v
 	//   txbat=txbat*360/4096;
 
@@ -1478,9 +1485,8 @@ void updateDisplay()
 	//   renderPage(pages[currentPage].controls,pages[currentPage].len,lastPage!=currentPage,lcdbuf,128);
 	//   LcdBitBlt(lcdbuf,128,0,0,128,64,&lcd);
 	//   lastPage=currentPage;
-
-
 }
+
 void updatePcDisplay()
 {
 	//crudely send part of the bitmap on each frame
@@ -1521,16 +1527,19 @@ void checkBattery()
 	}
 	vAHI_DacOutput (E_AHI_AP_DAC_1,lastDacTry);
 }
+
 void CalibrateJoysticksTopRight()
 {
-
 }
+
 void CalibrateJoysticksBottomLeft()
 {
 }
+
 void CalibrateJoysticksNeutral()
 {
 }
+
 void nextModel()
 {
 	store s;
@@ -1546,10 +1555,9 @@ void nextModel()
 		loadModelByIdx(&s, &liveModel, liveModelIdx);
 
 		enableModelComs();
-
 	}
-
 }
+
 void copyModel()
 {
 	//save any changes to current model
@@ -1560,6 +1568,7 @@ void copyModel()
 	numModels++;
 	strcpy(liveModel.name, "New Model");
 }
+
 void storeSettings()
 {
 	//todo untested on JN5148
@@ -1589,6 +1598,7 @@ void storeSettings()
 
 	commitStore(&s);
 }
+
 void loadSettings()
 {
 	pcComsPrintf("load Settings \r\n");
@@ -1615,7 +1625,6 @@ void loadSettings()
 				break;
 
 			case STORERADIOSECTION:
-
 				loadRadioSettings(&section);
 				break;
 
@@ -1632,8 +1641,8 @@ void loadSettings()
 	}
 	if (numModels == 0)
 		loadDefaultSettings();
-
 }
+
 void loadGeneralSettings(store* s)
 {
 	store section;
@@ -1647,8 +1656,8 @@ void loadGeneralSettings(store* s)
 			break;
 		}
 	}
-
 }
+
 void saveGeneralSettings(store* s)
 {
 	store section;
@@ -1658,6 +1667,7 @@ void saveGeneralSettings(store* s)
 
 	storeEndSection(s, &section);
 }
+
 void loadRadioSettings(store* s)
 {
 	store section;
@@ -1675,16 +1685,18 @@ void loadRadioSettings(store* s)
 		}
 	}
 }
+
 void saveRadioSettings(store* s)
 {
 	store section;
-	storeStartSection(s, STORERADIOSECTION, &section);
+	storeStartSection(s,STORERADIOSECTION,&section);
 	if (useHighPowerModule == TRUE)
 		storeUint8Section(&section, STORERADIOHIGHPOWER, 0);
 	else
 		storeUint8Section(&section, STORERADIOHIGHPOWER, 1);
-	storeEndSection(s, &section);
+	storeEndSection(s,&section);
 }
+
 void loadDefaultSettings()
 {
 	//	setupAlula(&liveModel);
@@ -1751,17 +1763,18 @@ void sleep()
 
 	vAHI_WakeTimerEnable(E_AHI_WAKE_TIMER_0, TRUE);
 	vAHI_WakeTimerStart(E_AHI_WAKE_TIMER_0, 32* 1000* 5 ) ;//5 second wakeup
-vAHI_Sleep	(E_AHI_SLEEP_OSCON_RAMON);
+	vAHI_Sleep(E_AHI_SLEEP_OSCON_RAMON);
 
 	//tx 1.0 hw currently uses 70ua whilst sleeping
 	//about 45uA unaccounted for!
-	//at 5v bat monitor uses 16uA - could use higher value resitors
+	//at 5v bat monitor uses 16uA - could use higher value resistors
 	//ram retention 2.4uA
 	//sleep  with timer 1.2uA
 	//tsc2003 should be 3uA
 	//eadog lcd should be 150uA on 0.1uA sleep
 	//
 }
+
 void enableModelComs()
 {
 
@@ -1769,10 +1782,10 @@ void enableModelComs()
 	setHopMode(hoppingContinuous);
 
 }
+
 void setTxMode(teState state)
 {
 	sCoordinatorData.eState = state;
-
 }
 
 /****************************************************************************/
