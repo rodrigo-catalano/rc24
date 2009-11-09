@@ -55,7 +55,6 @@ codes >= 0x80 app
 #define CMD_GROUP_IDX 0
 #define CMD_FUNCTION_IDX 1
 
-
 //constants to identify commands and command groups
 
 #define CMD_ENUM_GROUP 10 // 0 - temp value to allow coexistence with current code
@@ -69,87 +68,80 @@ codes >= 0x80 app
 #define CMD_ENUM_GET_PARAMETER_META 6
 #define CMD_ENUM_GET_PARAMETER_META_RESP 7
 
-
 #define CMD_SET_PARAM 1
 #define CMD_SET_PARAM_RESP 2
 #define CMD_GET_PARAM 3
 #define CMD_GET_PARAM_RESP 4
 
-	// types that can be sent in parameter commands
-	typedef enum
-	{
-		CC_BOOL,
-		CC_STRING,
-	    CC_UINT8,
-	    CC_INT8,
-	    CC_UINT16,
-	    CC_INT16,
-	    CC_UINT32,
-	    CC_INT32,
-	    CC_UINT64,
-	    CC_INT64,
-	    CC_BOOL_ARRAY,
-		CC_STRING_ARRAY,
-		CC_UINT8_ARRAY,
-		CC_INT8_ARRAY,
-		CC_UINT16_ARRAY,
-		CC_INT16_ARRAY,
-		CC_UINT32_ARRAY,
-		CC_INT32_ARRAY,
-		CC_UINT64_ARRAY,
-		CC_INT64_ARRAY,
-		CC_FLOAT,
-		CC_DOUBLE,
-		CC_FLOAT_ARRAY,
-		CC_DOUBLE_ARRAY,
-		CC_ENUMERATION,
-		CC_ENUMERATION_VALUES,
-		CC_VOID_FUNCTION
+// types that can be sent in parameter commands
+typedef enum
+{
+	CC_BOOL,
+	CC_STRING,
+	CC_UINT8,
+	CC_INT8,
+	CC_UINT16,
+	CC_INT16,
+	CC_UINT32,
+	CC_INT32,
+	CC_UINT64,
+	CC_INT64,
+	CC_BOOL_ARRAY,
+	CC_STRING_ARRAY,
+	CC_UINT8_ARRAY,
+	CC_INT8_ARRAY,
+	CC_UINT16_ARRAY,
+	CC_INT16_ARRAY,
+	CC_UINT32_ARRAY,
+	CC_INT32_ARRAY,
+	CC_UINT64_ARRAY,
+	CC_INT64_ARRAY,
+	CC_FLOAT,
+	CC_DOUBLE,
+	CC_FLOAT_ARRAY,
+	CC_DOUBLE_ARRAY,
+	CC_ENUMERATION,
+	CC_ENUMERATION_VALUES,
+	CC_VOID_FUNCTION
+} ccType;
 
-	}ccType;
+typedef union
+{
+	bool* cpBoolPtr;
+	char* cpCharPtr;
+	uint8* cpUInt8ptr;
+	int8* cpInt8Ptr;
+	uint16* cpUInt16Ptr;
+	int16* cpInt16Ptr;
+	uint32* cpUInt32Ptr;
+	int32* cpInt32Ptr;
+	uint64* cpUInt64Ptr;
+	int64* cpInt64Ptr;
 
-	typedef union
-	{
-		bool* cpBoolPtr;
-		char* cpCharPtr;
-		uint8* cpUInt8ptr;
-		int8* cpInt8Ptr;
-		uint16* cpUInt16Ptr;
-		int16* cpInt16Ptr;
-		uint32* cpUInt32Ptr;
-		int32* cpInt32Ptr;
-		uint64* cpUInt64Ptr;
-		int64* cpInt64Ptr;
+} ccParamPtr;
 
-	}ccParamPtr;
+typedef struct
+{
+	const char* name;
+	ccType type;
+	void* paramPtr;  //set to NULL for accessor function access
+	int arrayLen; //length of array parameter
+//	setFunction
+//	getFunction
+} ccParameter;
 
+typedef struct
+{
+	ccParameter* parameters;
+	uint16 len;
+} ccParameterList;
 
-	typedef struct
-	{
-		const char* name;
-		ccType type;
-		void* paramPtr;  //set to NULL for accessor function access
-		int arrayLen; //length of array parameter
-	//	setFunction
-	//	getFunction
-
-	} ccParameter;
-
-	typedef struct
-	{
-		ccParameter* parameters;
-		uint16 len;
-	}ccParameterList;
-
-	uint8 ccWriteString(uint8* out,const char* val);
-	uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
-	uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
-	uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
-
+uint8 ccWriteString(uint8* out,const char* val);
+uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
+uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
+uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
 
 #if defined __cplusplus
 }
 #endif
 #endif
-
-

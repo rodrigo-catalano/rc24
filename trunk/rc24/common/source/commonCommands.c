@@ -146,7 +146,7 @@ uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg
 	case CMD_ENUM_GET_CHILD_NODES_RESP:
 		break;
 	case CMD_ENUM_GET_PARAMETERS:
-		//return the number of parameters - assume there are no gaps and they start from 0
+		// Return the number of parameters - assume there are no gaps and they start from 0
 		outMsg[retlen++] = CMD_ENUM_GROUP;
 		outMsg[retlen++] = CMD_ENUM_GET_PARAMETERS_RESP;
 		outMsg[retlen++] = paramList->len;
@@ -154,7 +154,7 @@ uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg
 	case CMD_ENUM_GET_PARAMETERS_RESP:
 		break;
 	case CMD_ENUM_GET_PARAMETER_META:
-		//send metadata for property
+		// Send metadata for property
 		paramIdx=inMsg[2];
 		outMsg[retlen++] = CMD_ENUM_GROUP;
 		outMsg[retlen++] = CMD_ENUM_GET_PARAMETER_META_RESP;
@@ -193,10 +193,15 @@ uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg
 
 uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 {
-	//TODO decide if response is required - maybe make it a flag in request
+	// Send an ack/nack response
 	uint8 retlen=0;
+	outMsg[retlen++] = CMD_SET_PARAM_RESP;
+
+	bool responseAck = FALSE;	// Assume a nack response
+
 	uint8 start=0;
 	uint8 len=0;
+	uint8 itemSize;	// Size of item to transfer
 
 	ccParameter* param = &paramList->parameters[inMsg[1]];
 	//if direct access to variable
@@ -206,16 +211,22 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		switch (param->type)
 		{
 		case CC_BOOL:
-			if(inMsg[2]==0)*((bool*) paramPtr)=TRUE;
-			else *((bool*) paramPtr)=FALSE;
+			// Value inversion?  0 in => TRUE??
+			if (inMsg[2] == 0)
+				*((bool*) paramPtr) = TRUE;
+			else
+				*((bool*) paramPtr) = FALSE;
+			responseAck = TRUE;
 			break;
 		case CC_STRING:
 			break;
 		case CC_UINT8:
 			*((uint8*) paramPtr) = inMsg[2];
+			responseAck = TRUE;
 			break;
 		case CC_INT8:
 			*((int8*) paramPtr) = inMsg[2];
+			responseAck = TRUE;
 			break;
 		case CC_UINT16:
 			break;
@@ -224,7 +235,8 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		case CC_UINT32:
 			break;
 		case CC_INT32:
-			*((int32*) paramPtr) = (inMsg[2]<<24)+(inMsg[3]<<16)+(inMsg[4]<<8)+inMsg[5];
+			*((int32*) paramPtr) = (inMsg[2] << 24) + (inMsg[3] << 16) + (inMsg[4] << 8) + inMsg[5];
+			responseAck = TRUE;
 			break;
 		case CC_UINT64:
 			break;
@@ -239,16 +251,24 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		case CC_INT8_ARRAY:
 			break;
 		case CC_UINT16_ARRAY:
-			start=inMsg[2];
-			len=inMsg[3];
-			//TODO limit checks
-			memcpy(((uint16*)paramPtr)+start,&inMsg[4],len*2);
+			// Limit start and length to ensure no writes off the end
+			start = MIN(inMsg[2], param->arrayLen - 1);
+			len = MIN(inMsg[3], param->arrayLen - start);
+			itemSize = sizeof(uint16);
+			memcpy((uint16*)(paramPtr + start * itemSize), &inMsg[4], len * itemSize);
+			responseAck = TRUE;
 			break;
 		case CC_INT16_ARRAY:
 			break;
 		case CC_UINT32_ARRAY:
 			break;
 		case CC_INT32_ARRAY:
+			// Limit start and length to ensure no writes off the end
+			start = MIN(inMsg[2], param->arrayLen - 1);
+			len = MIN(inMsg[3], param->arrayLen - start);
+			itemSize = sizeof(int32);
+			memcpy((int32*)(paramPtr + start * itemSize), &inMsg[4], len * itemSize);
+			responseAck = TRUE;
 			break;
 		case CC_UINT64_ARRAY:
 			break;
@@ -264,6 +284,7 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			break;
 		case CC_ENUMERATION:
 			*((uint8*) paramPtr) = inMsg[2];
+			responseAck = TRUE;
 			break;
 		case CC_ENUMERATION_VALUES:
 			break;
@@ -276,6 +297,9 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		//TODO implement get/set function interface
 		//use set function ptr
 	}
+
+	// Set the response value
+	outMsg[retlen++] = responseAck;
 	return retlen;
 }
 /****************************************************************************
@@ -301,8 +325,10 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 	uint8 retlen = 0;
 	outMsg[retlen++] = CMD_GET_PARAM_RESP;
 	outMsg[retlen++] = inMsg[1];
+
 	uint8 start=0;
 	uint8 len=0;
+	uint8 itemSize;	// Size of item to transfer
 	uint8 idx;
 
 	ccParameter* param = &paramList->parameters[inMsg[1]];
@@ -356,12 +382,12 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			retlen = 0;
 			break;
 		case CC_UINT16_ARRAY:
-			start=inMsg[2];
-			len=inMsg[3];
-			outMsg[retlen++] =start;
-			outMsg[retlen++] =len;
-			memcpy(&outMsg[retlen],(uint16*) paramPtr+start,len*2);
-			retlen+=len*2;
+			outMsg[retlen++] = start = inMsg[2];
+			outMsg[retlen++] = len = inMsg[3];
+			// Write data in native order
+			itemSize = sizeof(uint16);
+			memcpy(&outMsg[retlen],(uint16*)(paramPtr + start * itemSize), len * itemSize);
+			retlen += len * itemSize;
 			break;
 		case CC_INT16_ARRAY:
 			retlen = 0;
@@ -370,7 +396,12 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			retlen = 0;
 			break;
 		case CC_INT32_ARRAY:
-			retlen = 0;
+			outMsg[retlen++] = start = inMsg[2];
+			outMsg[retlen++] = len = inMsg[3];
+			// Write data in native order
+			itemSize = sizeof(int32);
+			memcpy(&outMsg[retlen],(uint32*)(paramPtr + start * itemSize), len * itemSize);
+			retlen += len * itemSize;
 			break;
 		case CC_UINT64_ARRAY:
 			retlen = 0;
@@ -407,8 +438,6 @@ uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 		case CC_VOID_FUNCTION:
 			retlen = 0;
 			break;
-
-
 		}
 	}
 	else
