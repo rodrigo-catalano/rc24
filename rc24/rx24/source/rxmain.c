@@ -24,7 +24,7 @@
 #include <AppQueueApi.h>
 #include <mac_sap.h>
 #include <mac_pib.h>
-#include <Printf.h>
+//#include <Printf.h>
 #include <stdlib.h>
 
 #include "config.h"
@@ -200,7 +200,7 @@ void dbgPrintf(const char *fmt, ...)
  ****************************************************************************/
 PUBLIC void AppColdStart(void)
 {
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	// TODO - use watch dog and probably disable brownout reset
 	vAHI_WatchdogStop();
 #else

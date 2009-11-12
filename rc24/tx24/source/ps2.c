@@ -22,7 +22,7 @@ Copyright 2008 - 2009 © Alan Hopper
 
 #include <jendefs.h>
 #include <AppHardwareApi.h>
-#include <printf.h>
+
 
 #include "ps2.h"
 #include "hwutils.h"
@@ -176,6 +176,7 @@ cycleDelay(48*16);
 }
 void ps2Dump(ps2ControllerOp* ps2)
 {
+	/*
     vPrintf(" %d %d %d %d %d %d %d %d      \r\n",
         ps2->Model,
         ps2->Status,
@@ -202,7 +203,7 @@ void ps2Dump(ps2ControllerOp* ps2)
     if(ps2->Start)vPrintf("Start ");
     if(ps2->LJoy)vPrintf("LJoy ");
     if(ps2->RJoy)vPrintf("RJoy ");
-
+*/
 
 }
 

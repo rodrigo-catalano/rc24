@@ -22,7 +22,6 @@ Copyright 2008 - 2009 © Alan Hopper
 #include <jendefs.h>
 #include <AppHardwareApi.h>
 #include <SMBus.h>
-#include <printf.h>
 #include "ps2.h"
 #include "wii.h"
 
@@ -70,6 +69,7 @@ bool readWiiController(WiiController* wii)
  }
 void wiiDump(WiiController* wii)
 {
+	/*
     vPrintf(" %d %d %d %d %d     \r\n",
         wii->JoyX,
         wii->JoyY,
@@ -79,5 +79,5 @@ void wiiDump(WiiController* wii)
 
     if(wii->ZButton)vPrintf("Z ");
     if(wii->CButton)vPrintf("C ");
-
+*/
 }

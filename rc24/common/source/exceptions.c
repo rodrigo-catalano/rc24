@@ -23,7 +23,7 @@ Copyright 2008 - 2009 © Alan Hopper
 #include <AppHardwareApi.h>
 #include "exceptions.h"
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 #define BUS_ERROR *((volatile uint32 *)(0x4000000))
 #define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000008))
 #define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x40000C0))
@@ -60,7 +60,7 @@ void setExceptionMarker(resetType excep)
 {
 	vAHI_WakeTimerEnable(E_AHI_WAKE_TIMER_1,FALSE);
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	vAHI_WakeTimerStartLarge(E_AHI_WAKE_TIMER_1,(excep*1000)+400);
 #else
 	vAHI_WakeTimerStart(E_AHI_WAKE_TIMER_1,(excep*1000)+400);
@@ -175,7 +175,7 @@ void setExceptionHandlers()
 resetType getResetReason()
 {
 	resetType ret;
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	ret=u64AHI_WakeTimerReadLarge(E_AHI_WAKE_TIMER_1)/1000;
 #else
 	ret=u32AHI_WakeTimerRead(E_AHI_WAKE_TIMER_1)/1000;

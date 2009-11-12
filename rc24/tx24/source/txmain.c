@@ -25,7 +25,6 @@
 #include <AppQueueApi.h>
 #include <mac_sap.h>
 #include <mac_pib.h>
-#include <printf.h>
 #include <stdlib.h>
 #include <math.h>
 
@@ -228,7 +227,7 @@ int tsClickY;
 
 pcCom pccoms;
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 #define TICK_CLOCK_MHZ 16
 #define PERIF_CLOCK_MHZ 16
 #else
@@ -274,7 +273,7 @@ PUBLIC void AppColdStart(void)
 
 	//get config from flash
 	//    loadSettings();
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	vAHI_WatchdogStop();
 
 #else
@@ -566,7 +565,7 @@ PRIVATE void vInitSystem(void)
 	// disable normal hold off and retry stuff
 	// do it in app code so that we can include send time in packet
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	//thanks to Jennic support for this
 	s_psMacPib->u8MaxFrameRetries = 0;
 
@@ -1004,9 +1003,10 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 			memcpy(&f, &pu8Data[2], 4);
 			rxData[pu8Data[1]] = f;
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 			//todo sort out maths lib on 5148
 #else
+
 			if(pu8Data[0]==rxheightidx && initialHeight==-9999)initialHeight=f;
 			if(pu8Data[0]==rxlatidx && initialLat==-9999)
 			{
@@ -1031,6 +1031,7 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 				//      sqrt(((lat1-lat2)*60)^2 + (long1-long2)*nn)^2)
 
 			}
+
 #endif
 		}
 	}
@@ -1750,7 +1751,7 @@ void sleep()
 	//vAHI_DioSetOutput(0,lcd.resetpin);
 	//vAHI_DioSetOutput(lcd.spicspin,0);
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 
 #else
 	vAppApiSetBoostMode(FALSE);

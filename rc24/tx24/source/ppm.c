@@ -22,7 +22,7 @@ Copyright 2008 - 2009 © Alan Hopper
 #include <jendefs.h>
 #include <AppHardwareApi.h>
 #include "ppm.h"
-#include <printf.h>
+
 
 #define MAX_PPM_CHANNELS 8
 

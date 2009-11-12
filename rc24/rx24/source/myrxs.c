@@ -28,7 +28,7 @@
 #include "motorpwm.h"
 #include "nmeagps.h"
 
-#include <printf.h>
+
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
