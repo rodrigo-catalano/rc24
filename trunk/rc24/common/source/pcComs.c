@@ -22,9 +22,7 @@ Copyright 2008 - 2009 © Alan Hopper
 
 #include <jendefs.h>
 #include <AppHardwareApi.h>
-#include <printf.h>
 #include <stdlib.h>
-#include <utilities.h>
 #include <mac_sap.h>
 #include <mac_pib.h>
 #include <stdio.h>

@@ -23,7 +23,7 @@ Copyright 2008 - 2009 © Alan Hopper
 #include <AppHardwareApi.h>
 #include <stdlib.h>
 #include <utilities.h>
-#include <printf.h>
+//#include <printf.h>
 #include "swEventQueue.h"
 #include "nmeagps.h"
 

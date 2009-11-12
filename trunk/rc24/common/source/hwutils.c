@@ -27,7 +27,7 @@
 void cycleDelay(uint32 del)
 {
 
-#if(JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	asm volatile("bg.addi r3,r3,-4;");
 	asm volatile("bg.bgesi r3,0,-4;");
 	//adjust to 1 cycle accuracy -
@@ -94,7 +94,7 @@ uint16 u16ReadADC(uint8 channel)
 
 uint32 flashSectorSize()
 {
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	return 0x10000;
 #else
 	return 0x8000;
@@ -102,7 +102,7 @@ uint32 flashSectorSize()
 }
 uint32 flashNumSectors()
 {
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 	return 8;
 #else
 	return 4;

@@ -29,7 +29,6 @@
 #include <AppQueueApi.h>
 #include <mac_sap.h>
 #include <mac_pib.h>
-#include <printf.h>
 #include <stdlib.h>
 #include <math.h>
 
