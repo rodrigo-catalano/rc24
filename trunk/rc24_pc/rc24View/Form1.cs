@@ -609,6 +609,7 @@ namespace Serial
                     buttonResetNode.Visible = false;
                     nodeParameterList.Properties.Clear();
                     activeNode.properties.Clear();
+                    clearPropertyViewer();
                     propertyGrid1.Refresh();
                     break;
             }
@@ -628,12 +629,23 @@ namespace Serial
             routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x96 });
             SendRoutedMessage(msg, SERIALCON);
         }
+        private void clearPropertyViewer()
+        {
+            foreach (Button b in commandPanel.Controls)
+            {
+                b.Click -= cmdButton_Click;
+            }
+            commandPanel.Controls.Clear();
+          
+        }
+
         private void getNodeParameters()
         {
             //nodeParameterList.Properties.Clear();
             activeNode.properties.Clear();
+
             nodeParameterList.Node=activeNode;
-         
+            clearPropertyViewer();
             propertyGrid1.Refresh();
 
 
@@ -686,7 +698,7 @@ namespace Serial
                     activeNode.properties.Add(pName, property);
 
                     //bind to property editor
-                    if (property.TypeIdx != ccParameter.CC_ENUMERATION_VALUES)
+                    if (property.TypeIdx != ccParameter.CC_ENUMERATION_VALUES && property.TypeIdx != ccParameter.CC_VOID_FUNCTION )
                     {
                         Flobbster.Windows.Forms.PropertySpec p =
                             new Flobbster.Windows.Forms.PropertySpec(pName, property.type, "Parameters");
@@ -699,13 +711,51 @@ namespace Serial
 
                         propertyGrid1.Refresh();
                     }
+                    if (property.TypeIdx == ccParameter.CC_VOID_FUNCTION)
+                    {
+                        Button cmdButton = new Button();
+                        cmdButton.Text = pName;
+                        cmdButton.Tag = property;
+                        cmdButton.AutoSize = true;
+                        cmdButton.Click += new EventHandler(cmdButton_Click);
+                        commandPanel.Controls.Add(cmdButton);
 
-                    //get value
-                    routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx, 0x00, pArrayLen });
-                    SendRoutedMessage(msgValReq, SERIALCON);
-
+                        if (activeNode.parameterCount > activeNode.properties.Count)
+                        {
+                            //get next parameter
+                            routedMessage msgGetMeta = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x6, (byte)activeNode.properties.Count });
+                            SendRoutedMessage(msgGetMeta, SERIALCON);
+                        }
+                    
+                    }
+                    else
+                    {
+                        //get value
+                        routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx, 0x00, pArrayLen });
+                        SendRoutedMessage(msgValReq, SERIALCON);
+                    }
 
                     break;
+            }
+        }
+
+        void cmdButton_Click(object sender, EventArgs e)
+        {
+            //call void function(void) on remote device
+            Button b = sender as Button;
+            if (b != null)
+            {
+                ccParameter param = b.Tag as ccParameter;
+                if (param != null)
+                {
+                    byte[] cmd = param.buildSetCmd();
+
+                    if (cmd != null)
+                    {
+                        routedMessage msgValSet = new routedMessage(param.Owner.address, cmd);
+                        SendRoutedMessage(msgValSet, SERIALCON);
+                    }
+                }
             }
         }
         

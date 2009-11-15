@@ -319,7 +319,7 @@ namespace rc24
                 case CC_ENUMERATION_VALUES:
                     break;
                 case CC_VOID_FUNCTION:
-                    throw (new NotImplementedException());
+                    //no parameters
                     break;
             }
             return cmd.getCommand();
