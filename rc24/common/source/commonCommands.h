@@ -73,6 +73,8 @@ codes >= 0x80 app
 #define CMD_GET_PARAM 3
 #define CMD_GET_PARAM_RESP 4
 
+
+typedef void (*VOID_FN)(void);
 // types that can be sent in parameter commands
 typedef enum
 {
@@ -120,14 +122,19 @@ typedef union
 
 } ccParamPtr;
 
+#define CC_NO_SETTER NULL
+#define CC_NO_GETTER NULL
+#define CC_NO_VAR_ACCESS NULL
+
+
 typedef struct
 {
 	const char* name;
 	ccType type;
 	void* paramPtr;  //set to NULL for accessor function access
 	int arrayLen; //length of array parameter
-//	setFunction
-//	getFunction
+	void* getFunction;
+	VOID_FN setFunction;
 } ccParameter;
 
 typedef struct

@@ -292,10 +292,19 @@ uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg)
 			break;
 		}
 	}
-	else
+	else if(param->setFunction!=NULL)
 	{
 		//TODO implement get/set function interface
 		//use set function ptr
+		switch (param->type)
+		{
+			case CC_VOID_FUNCTION:
+				(*param->setFunction)();
+				responseAck = TRUE;
+			break;
+			default:
+				break;
+		}
 	}
 
 	// Set the response value
