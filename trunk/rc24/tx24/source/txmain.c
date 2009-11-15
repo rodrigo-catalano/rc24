@@ -243,12 +243,13 @@ uint32 dbgmsgtimeend;
 //their command id is defined by position in the list
 ccParameter exposedParameters[] =
 {
-	{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 },
-	{ "Default Input", CC_ENUMERATION, &inputMethod, 2 },
+	{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "Default Input", CC_ENUMERATION, &inputMethod, 2 ,CC_NO_GETTER,CC_NO_SETTER},
 	{ "Input Enum", CC_ENUMERATION_VALUES, defaultInputEnumValues,
-		sizeof(defaultInputEnumValues) / sizeof(defaultInputEnumValues[0]) },
-	{ "TX Inputs", CC_INT32_ARRAY, txInputs, sizeof(txInputs) / sizeof(txInputs[0]) },
-	{ "TX Demands", CC_INT32_ARRAY, txDemands, sizeof(txDemands) / sizeof(txDemands[0]) }
+		sizeof(defaultInputEnumValues) / sizeof(defaultInputEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "TX Inputs", CC_INT32_ARRAY, txInputs, sizeof(txInputs) / sizeof(txInputs[0]) ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "TX Demands", CC_INT32_ARRAY, txDemands, sizeof(txDemands) / sizeof(txDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,CC_NO_GETTER,storeSettings }
 };
 
 ccParameterList parameterList =
