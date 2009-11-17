@@ -24,7 +24,6 @@
 #include <AppQueueApi.h>
 #include <mac_sap.h>
 #include <mac_pib.h>
-//#include <Printf.h>
 #include <stdlib.h>
 
 #include "config.h"
@@ -81,6 +80,28 @@ typedef struct
 
 } tsEndDeviceData;
 
+// flash store defines
+// changing values will break reading of previously saved settings
+
+//store root items and sections
+
+#define STORERXBINDING_MACL (1 | STOREINT32)
+#define STORERXBINDING_MACH (2 | STOREINT32)
+#define	S_GENERAL 3
+#define	S_RADIO 4
+#define S_STORE_TYPE (5 | STOREINT32)
+
+// magic number to check that store is for rx. The module could
+// have been programmed as a tx in the past
+#define RX_STORE_TYPE 97823
+
+//store general section items and sections
+#define	S_RADIODEBUG (1| STOREINT8)
+
+//store radio section items and sections
+#define	S_HIGHPOWERMODULE (1| STOREINT8)
+
+
 /****************************************************************************/
 /***        Local Function Prototypes                                     ***/
 /****************************************************************************/
@@ -103,6 +124,11 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon);
 void loadDefaultSettings(void);
 void loadSettings(void);
 void storeSettings(void);
+void loadRadioSettings(store* s);
+void saveRadioSettings(store* s);
+void loadGeneralSettings(store* s);
+void saveGeneralSettings(store* s);
+
 
 //PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap);
 
@@ -122,11 +148,12 @@ PRIVATE tsEndDeviceData sEndDeviceData;	// End device state store
 PRIVATE uint32 rxdpackets = 0;	// Global packet counter
 PRIVATE uint8 txLinkQuality = 0;	// Link quality from last message
 PRIVATE uint32 frameCounter = 0;	// Good for almost 3 years at 50/sec
-PRIVATE uint8 debugCon = CONPC;	// Where to send debug messages
 PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
 PRIVATE uint8 rxLEDFlashCount = 0;	// Counter for LED flasher
 PRIVATE uint8 rxLEDFlashLimit = LED_FLASH_MED;	// Count limit to toggle LED
 PRIVATE bool rxLEDState = FALSE;	// State of LED
+
+PRIVATE bool useHighPowerModule = FALSE;
 
 // TODO - make local to using function
 PRIVATE nmeaGpsData gpsData;	// Data from GPS device
@@ -139,22 +166,24 @@ PRIVATE uint32 txMACl = 0;	// Tx MAC address low word
 // TODO - only used in a function, move there?
 pcCom pccoms;
 
-// TODO - Unused??
-uint16 thop = 0;
-uint32 intstore;
-uint32 frameperiods = 0;
-uint32 resyncs = 0;
-uint32 reportNo = 0;
+// temp means of selecting debug route from pc interface
+// to be replaced by 'register for event' stuff
+bool radioDebug=FALSE;
+//hard coded routes for debug messages
+route pcViaTx={2,{CONTX,1}};
+route pcViaComPort={1,{CONPC}};
 
-uint8 testparam=27;
-int testparam2=2452;
+route* debugRoute=&pcViaTx;
+
 //list of parameters that can be read or set by connected devices
 //either by direct access to variable or through getters and setters
 //their command id is defined by position in the list
 ccParameter exposedParameters[]=
 {
 		{ "RX Demands", CC_UINT16_ARRAY, rxDemands, sizeof(rxDemands) / sizeof(rxDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,CC_NO_GETTER,storeSettings }
+		{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,CC_NO_GETTER,storeSettings },
+		{ "Radio Debug",CC_BOOL,&radioDebug,0,CC_NO_GETTER,CC_NO_SETTER },
+		{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 ,CC_NO_GETTER,CC_NO_SETTER}
 };
 ccParameterList parameterList=
 {
@@ -173,15 +202,19 @@ void dbgPrintf(const char *fmt, ...)
 	// can ask for debug messages
 	// TODO - Fix magic numbers
 	char buf[196];
-	buf[0] = 0;
-	buf[1] = 0xff;
-	int ret;
+	uint8 msglen=0;
+	msglen+=rmWriteEncodedRoute((uint8*)buf,debugRoute);
+	//debug message command
+	buf[msglen++] = 0xff;
+
+	int slen;
 	va_list ap;
 	va_start(ap, fmt);
-	ret = vsnprintf(buf + 3, 190, fmt, ap);
+	slen = vsnprintf(buf + msglen+1, 196-msglen-1, fmt, ap);
 	va_end(ap);
-	buf[2] = ret;
-	rxSendRoutedMessage((uint8*) buf, ret + 3, debugCon);
+	buf[msglen++] = slen;
+	msglen+=slen;
+	rxSendRoutedMessage((uint8*) buf, msglen, debugRoute->routeNodes[0]);
 }
 
 
@@ -210,20 +243,21 @@ PUBLIC void AppColdStart(void)
 	// TODO - move to settings?
 	setHopMode(hoppingRxStartup);
 
-
 	// Initialise the system
 	vInitSystem();
 
-	if (debugCon == CONPC)
+	// set up the exception handlers
+	setExceptionHandlers();
+
+	if(!radioDebug)debugRoute=&pcViaComPort;
+	else debugRoute=&pcViaTx;
+
+	if (debugRoute->routeNodes[0] == CONPC)
 	{
 		// Don't use uart pins for servo op
 		initPcComs(&pccoms, CONPC, 0, rxHandleRoutedMessage);
 		vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
 	}
-
-	// set up the exception handlers
-	setExceptionHandlers();
-
 
 
 	// Initialise the clock
@@ -234,8 +268,6 @@ PUBLIC void AppColdStart(void)
 	   */
 	//bAHI_SetClockRate(3);
 
-	// Send init string to PC
-	dbgPrintf("rx24 2.10 ");
 
 	resetType rt=getResetReason();
 	if(rt!=NOEXCEPTION)
@@ -243,17 +275,16 @@ PUBLIC void AppColdStart(void)
 		dbgPrintf("EXCEPTION %d \r\n",rt);
 	}
 
-	// Load the receiver settings
-	loadSettings();
 
 	// Set handler for incoming data
 	setRadioDataCallback(rxHandleRoutedMessage, CONTX);
 
 	// Retrieve the MAC address and log it to the PC
 	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
-	dbgPrintf("\r\nmac %x %x ", macptr->u32H, macptr->u32L);
-	// log bound tx mac to pc
-	dbgPrintf("\r\nbound tx mac %x %x ",txMACh ,txMACl );
+
+	// Send init string to PC log rx mac andbound tx mac to pc
+	dbgPrintf("rx24 2.10 rx %x %x tx %x %x",macptr->u32H, macptr->u32L,txMACh ,txMACl );
+
 
 	// Use dio 16 for test sync pulse
 	vAHI_DioSetDirection(0, 1 << 16);
@@ -411,6 +442,16 @@ PRIVATE void vInitSystem(void)
 	(void) u32AHI_Init();
 	(void) u32AppQApiInit(NULL, NULL, NULL);
 
+	loadSettings();
+
+	if (useHighPowerModule == TRUE)
+	{
+		//max power for europe including antenna gain is 10dBm
+		// TODO see if we can use more power as rx antenna is lower gain
+		//??? boost is +2.5 ant is 1 and power set to 4 = 7.5 ????
+		vAHI_HighPowerModuleEnable(TRUE, TRUE);
+		bAHI_PhyRadioSetPower(2);
+	}
 	// Initialise end device state
 	sEndDeviceData.eState = E_STATE_IDLE;
 	sEndDeviceData.u8TxPacketSeqNb = 0;
@@ -1212,22 +1253,80 @@ void loadSettings()
 	int tag;
 	if (getOldStore(&s) == TRUE)
 	{
-		dbgPrintf("store found");
 		while ((tag = storeGetSection(&s, &section)) > 0)
 		{
-			dbgPrintf(" t%d",tag);
 			switch (tag)
 			{
+			case S_STORE_TYPE:
+				if(readInt32(&section)!=RX_STORE_TYPE)
+				{
+					// store is for something else
+					// TODO once we are all using code that saves this
+					// tag it should be checked before this loop
+					return;
+				}
 			case STORERXBINDING_MACL:
 				txMACl = (uint32) readInt32(&section);
 				break;
 			case STORERXBINDING_MACH:
 				txMACh = (uint32) readInt32(&section);
 				break;
-
+			case S_GENERAL:
+				loadGeneralSettings(&section);
+				break;
+			case S_RADIO:
+				loadRadioSettings(&section);
+				break;
 			}
 		}
 	}
+}
+
+void loadGeneralSettings(store* s)
+{
+	store section;
+	int tag;
+	while ((tag = storeGetSection(s, &section)) > 0)
+	{
+		switch (tag)
+		case S_RADIODEBUG:
+			radioDebug=(bool)readUint8(&section);
+			break;
+
+	}
+}
+
+void saveGeneralSettings(store* s)
+{
+	store section;
+	storeStartSection(s, S_GENERAL, &section);
+	storeUint8Section(&section, S_RADIODEBUG, (uint8)radioDebug);
+	storeEndSection(s, &section);
+}
+
+void loadRadioSettings(store* s)
+{
+	uint8 gg;
+
+	store section;
+	int tag;
+	while ((tag = storeGetSection(s, &section)) > 0)
+	{
+		switch (tag)
+		{
+		case S_HIGHPOWERMODULE:
+			useHighPowerModule=(bool)readUint8(&section);
+			break;
+		}
+	}
+}
+
+void saveRadioSettings(store* s)
+{
+	store section;
+	storeStartSection(s,S_RADIO,&section);
+	storeUint8Section(&section, S_HIGHPOWERMODULE, (uint8)useHighPowerModule);
+	storeEndSection(s,&section);
 }
 
 /****************************************************************************
@@ -1264,9 +1363,11 @@ void storeSettings()
 
 	// TODO - Explain
 	getNewStore(&s);
-
+	storeInt32Section(&s, S_STORE_TYPE, RX_STORE_TYPE);
 	storeInt32Section(&s, STORERXBINDING_MACL, (uint32) txMACl);
 	storeInt32Section(&s, STORERXBINDING_MACH, (uint32) txMACh);
+	saveGeneralSettings(&s);
+	saveRadioSettings(&s);
 
 	commitStore(&s);
 }
