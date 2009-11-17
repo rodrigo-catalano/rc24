@@ -18,8 +18,16 @@ Copyright 2008 - 2009 © Alan Hopper
 
 
 */
+//this defines a full route including the first step that is not included
+//in a routed message packet
+typedef struct
+{
+	uint8 length;
+	uint8 routeNodes[];
+}route;
 
 uint8 rmBuildReturnRoute(uint8* inbuf, uint8* outbuf);
 uint8 rmBuildRelayRoute(uint8* msg,uint8 fromCon);
 bool rmIsMessageForMe(uint8* msg);
 void rmGetPayload(uint8* msg,uint8 len,uint8** msgBody, uint8* msgLen);
+uint8 rmWriteEncodedRoute(uint8* buf,route* r);

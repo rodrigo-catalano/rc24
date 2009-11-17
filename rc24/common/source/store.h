@@ -38,8 +38,7 @@ Copyright 2008 - 2009 © Alan Hopper
 
 //rx store defines
 
-#define STORERXBINDING_MACL (1 | STOREINT32)
-#define STORERXBINDING_MACH (2 | STOREINT32)
+
 
 typedef struct
 {

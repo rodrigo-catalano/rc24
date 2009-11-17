@@ -33,6 +33,7 @@ message content
 */
 #include <jendefs.h>
 
+#include <string.h>
 #include "routedmessage.h"
 
 uint8 rmBuildReturnRoute(uint8* inbuf, uint8* outbuf)
@@ -58,7 +59,6 @@ uint8 rmBuildRelayRoute(uint8* msg,uint8 fromCon)
 }
 bool rmIsMessageForMe(uint8* msg)
 {
-    uint8 to;
     uint8 addrLen=msg[0]>>4;
     uint8 addrToIdx=msg[0]&0x0f;
 
@@ -75,6 +75,29 @@ void rmGetPayload(uint8* msg,uint8 len,uint8** msgBody, uint8* msgLen)
 	uint8 totalAddrLen=(msg[0]>>4)+1;
 	*msgBody=msg+totalAddrLen;
 	*msgLen=len-totalAddrLen;
+}
+/****************************************************************************
+ *
+ * NAME: rmWriteEncodedRoute
+ *
+ * DESCRIPTION: Write a route to a message buffer with first step removed
+ *
+ * PARAMETERS:      Name            RW  Usage
+ *  				buf				W 	output buffer
+ *  				r				R   route to write
+ *
+ * RETURNS: uint8 number of bytes written
+ *
+ *
+ * NOTES:
+ *  None.
+ ****************************************************************************/
+uint8 rmWriteEncodedRoute(uint8* buf,route* r)
+{
+	uint8 len=r->length;
+	memcpy(buf+1,r->routeNodes+1,len-1);
+	buf[0]=(len-1)<<4;
+	return len;
 }
 
 
