@@ -30,6 +30,8 @@ typedef struct
 
 }pcCom;
 
+extern uint32 pcComsCrcErrors;
+
 void initPcComs(pcCom* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb);
 void pcComsSendPacket(uint8 buff[], int start, uint8 length, uint8 cmd);
 void pcComsSendPacket2(uint8 buff[], int start, uint8 length, uint8 cmd,uint8 cmd2);

@@ -42,10 +42,16 @@ typedef struct
 /****************************************************************************/
 
 // Initialise the receiver inputs
-void initInputs(void);
+void initInputs(bool uart0InUse);
 
 // Initialise the receiver outputs
-void initOutputs(void);
+void initOutputs(bool uart0InUse);
 
 // Update the outputs
 void updateOutputs(uint16* channelData);
+
+extern char* rxHardwareTypeEnumValues[];
+//extern const size_t rxHardwareTypeCount;
+// TODO fix
+#define rxHardwareTypeCount 4
+extern uint8 rxHardwareType;

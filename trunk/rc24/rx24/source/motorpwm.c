@@ -26,6 +26,7 @@ Copyright 2008 - 2009 © Alan Hopper
 #include "motorpwm.h"
 #include "config.h"
 
+int pwmperiod=20*16; //50KHz
 //todo make frequency selectable and support timer 2 on JN5148
 void initMotorPwm(uint32 pin)
 {
@@ -34,7 +35,6 @@ void initMotorPwm(uint32 pin)
     else if(pin==E_AHI_DIO13_INT)timer=E_AHI_TIMER_1;
     else return;
 /* set up timer  PWM */
-    int period=1000*16; //1khz
     vAHI_TimerEnable(timer,
                      0,
                      FALSE,
@@ -46,14 +46,27 @@ void initMotorPwm(uint32 pin)
                           TRUE);
 
     vAHI_TimerStartRepeat(timer,
-                          period,       // low period (space)
-                          period);      // period
+                          pwmperiod,       // low period (space)
+                          pwmperiod);      // period
 
 }
 void setMotorPWM(int channel, uint16 ontime)
 {
-    int period=1000*16; //1khz
+	//ontime 0-4096
 
-    if(channel==E_AHI_DIO10_INT)WRITE_REG32(0x50000004,period-ontime);
-    else WRITE_REG32(0x60000004,period-ontime);
+	uint32 on=ontime*pwmperiod/4096;
+#ifdef JN5148
+    uint8 timer;
+    if(channel==E_AHI_DIO10_INT)timer=E_AHI_TIMER_0;
+    else if(channel==E_AHI_DIO13_INT)timer=E_AHI_TIMER_1;
+    else return;
+
+    vAHI_TimerStartRepeat(timer,
+                            pwmperiod-(uint16)on,   // low period (space)
+                            pwmperiod);      // period
+
+#else
+    if(channel==E_AHI_DIO10_INT)WRITE_REG32(0x50000004,pwmperiod-(uint16)on);
+    else WRITE_REG32(0x60000004,pwmperiod-(uint16)on);
+#endif
 }
