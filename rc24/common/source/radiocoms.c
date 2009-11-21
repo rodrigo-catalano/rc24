@@ -54,7 +54,7 @@ uint8 lpbLen=0;
 uint8 lpbWrite=0;
 uint8 lpbSeqId=0;
 uint8 lpbChunkId=0;
-
+uint8 lastlpbSeqId=255;
 
 
 //this queue should only be modified in app context
@@ -145,9 +145,17 @@ void handleLowPriorityData(uint8* buffer, uint8 len)
 
                 if(lpbWrite==lpbLen)
                 {
-                    //pass message on
-                    (*datacallback)(lowPriorityBuffer,lpbLen,radioCommsConnectorID);
-
+                    // pass message on
+                	// if same seq as last time ignore as message is a repeat.
+                	// Probably caused by the ack not being received or processed.
+                	// There is a 1 in 256 chance of the first message being
+                	// ignored if either end resets. We could send a sacrificial
+                	// message at start up.
+                	if(lpbSeqId != lastlpbSeqId)
+                	{
+                		(*datacallback)(lowPriorityBuffer,lpbLen,radioCommsConnectorID);
+                		lastlpbSeqId=lpbSeqId;
+                	}
                     lpbWrite=0;
                     lpbLen=0;
                 }

@@ -28,7 +28,18 @@
 #include "motorpwm.h"
 #include "nmeagps.h"
 
+#define	rx3dot2_6chan 0
+#define	rx3dot2_4chan_gps 1
+#define	rxsc1 2
+#define rx_GB_1dot2 3
 
+
+PUBLIC char* rxHardwareTypeEnumValues[] =
+{ "rx3.2 6 channnel", "rx3.2 4 channel + gps", "rx single cell 1.0", "rx GB 1.2" };
+
+//PUBLIC const size_t rxHardwareTypeCount=sizeof(rxHardwareTypeEnumValues) / sizeof(rxHardwareTypeEnumValues[0];
+
+PUBLIC uint8 rxHardwareType = 0;
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -66,16 +77,16 @@ opChannel standard6channel[20] = {
 	{ nc, 0 }
 };
 
-// set up for 6ch standard servo output with serial debug
-opChannel standard6channelDebug[20] = {
+// Set up for GB rx 1.2 with 8 channels
+opChannel gb1_2_8channel[20] = {
+	{ servopwm, E_AHI_DIO4_INT},
+	{ servopwm, E_AHI_DIO5_INT},
+	{ servopwm, E_AHI_DIO6_INT},
+	{ servopwm, E_AHI_DIO7_INT},
+	{ servopwm, E_AHI_DIO8_INT},
 	{ servopwm, E_AHI_DIO9_INT},
+	{ servopwm, E_AHI_DIO10_INT},
 	{ servopwm, E_AHI_DIO14_INT},
-	{ servopwm, E_AHI_DIO15_INT},
-	{ servopwm, E_AHI_DIO13_INT},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
 	{ nc, 0},
 	{ nc, 0},
 	{ nc, 0},
@@ -90,12 +101,16 @@ opChannel standard6channelDebug[20] = {
 	{ nc, 0 }
 };
 
-// setup for 2 servos and two brushed motors
-opChannel propsteer[20] = {
+
+// setup for rx sc1 5 servos and two brushed motors
+opChannel rxsc1_5servo[20] = {
 	{ servopwm, E_AHI_DIO6_INT},
 	{ servopwm, E_AHI_DIO7_INT},
 	{ pwm, E_AHI_DIO10_INT},
 	{ pwm, E_AHI_DIO13_INT},
+	{ servopwm, E_AHI_DIO14_INT},
+	{ servopwm, E_AHI_DIO15_INT},
+	{ servopwm, E_AHI_DIO20_INT},
 	{ nc, 0},
 	{ nc, 0},
 	{ nc, 0},
@@ -109,9 +124,6 @@ opChannel propsteer[20] = {
 	{ nc, 0},
 	{ nc, 0},
 	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0}
 };
 
 // setup for 4 servos and gps
@@ -157,14 +169,16 @@ PRIVATE opChannel* outputMapping;
  * NOTES:
  *  None.
  ****************************************************************************/
-void initInputs(void)
+void initInputs(bool uart0InUse)
 {
 	// TODO - allow conditional compilation
 	// or selection from flash settings
 	// or make this file a template for people to put their private implementations in
 
-	// comment out if no gps connected
-	//initNmeaGps(E_AHI_UART_0,E_AHI_UART_RATE_38400);
+	if(!uart0InUse && rxHardwareType == rx3dot2_4chan_gps)
+	{
+		initNmeaGps(E_AHI_UART_0,E_AHI_UART_RATE_38400);
+	}
 }
 
 /****************************************************************************
@@ -182,19 +196,38 @@ void initInputs(void)
  * NOTES:
  *  None.
  ****************************************************************************/
-void initOutputs()
+void initOutputs(bool uart0InUse)
 {
 	int nservos = 0;	// Count of number of configured servos
 
-	// Set output mapping used
-	//outputMapping=standard6channel;
-	outputMapping = standard6channelDebug;
-	//outputMapping=gps;
-	//outputMapping=propsteer;
+	switch(rxHardwareType)
+	{
+	case rx3dot2_6chan :
+		outputMapping=standard6channel;
+		break;
+	case rx3dot2_4chan_gps :
+		outputMapping=gps;
+		break;
+	case rxsc1 :
+		outputMapping = rxsc1_5servo;
+		break;
+	case rx_GB_1dot2 :
+		outputMapping = gb1_2_8channel;
+		break;
+	}
+
 
 	int i;
 	for (i = 0; i < 20; i++)
 	{
+		//prevent output on uart0 pins if used
+		if(uart0InUse)
+		{
+			if(outputMapping[i].pin==E_AHI_DIO6_INT || outputMapping[i].pin==E_AHI_DIO7_INT)
+			{
+				outputMapping[i].type=nc;
+			}
+		}
 		// For each of the configured output types
 		switch (outputMapping[i].type)
 		{
@@ -239,7 +272,7 @@ void initOutputs()
  * DESCRIPTION: Update outputs with new values from Tx
  *
  * PARAMETERS:      Name            RW  Usage
- *					channelData		R	array of new chanel data
+ *					channelData		R	array of new channel data
  *
  * RETURNS:
  *  None.
@@ -286,7 +319,7 @@ void updateOutputs(uint16* channelData)
 		case pwm:
 		{
 			// Set the motor PWM demanded value
-			setMotorPWM(outputMapping[i].pin, channelData[i] * 16000 / 4096);
+			setMotorPWM(outputMapping[i].pin, channelData[i]);
 			break;
 		}
 		case digital:

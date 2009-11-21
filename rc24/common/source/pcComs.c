@@ -62,6 +62,8 @@ uint8 pcComsWriteIdx=0;
 uint8 pcComsReadIdx=0;
 volatile uint8 pcComsTxLock=0;
 
+uint32 pcComsCrcErrors=0;
+
 uint8* getUploadBuffer(int* len)
 {
     *(len)=uploadRxLen;
@@ -297,6 +299,10 @@ void pcComsParsePacket(void* buff)
                 break;
             }
         }
+    }
+    else
+    {
+    	if(len>0&& packet[len]!=0)pcComsCrcErrors++;
     }
 }
 

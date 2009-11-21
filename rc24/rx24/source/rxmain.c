@@ -50,7 +50,9 @@
 
 #define FRAME_RATE 20	// Frame rate in Hz
 
+// TODO make led channel come from settings and be optional
 #define RX_LED_BIT		(1 << 17)			// DIO for LED
+//#define RX_LED_BIT		(1 << 5)			// DIO for LED
 #define LED_FLASH_SLOW 	(FRAME_RATE * 2)	// Flash every 2 secs
 #define LED_FLASH_MED  	FRAME_RATE			// Flash every second
 #define LED_FLASH_FAST 	(FRAME_RATE / 2)	// Flash twice per sec
@@ -96,7 +98,8 @@ typedef struct
 #define RX_STORE_TYPE 97823
 
 //store general section items and sections
-#define	S_RADIODEBUG (1| STOREINT8)
+#define	S_RADIODEBUG (1 | STOREINT8)
+#define	S_HARDWARETYPE (2 | STOREINT8)
 
 //store radio section items and sections
 #define	S_HIGHPOWERMODULE (1| STOREINT8)
@@ -175,6 +178,18 @@ route pcViaComPort={1,{CONPC}};
 
 route* debugRoute=&pcViaTx;
 
+//  health variables / metrics / instrumentation
+
+uint32 radioRoutedBytesRxd=0;
+uint32 radioRoutedPacketsRxd=0;
+uint32 radioRoutedBytesTxd=0;
+uint32 radioRoutedPacketsTxd=0;
+uint32 uart0RoutedBytesRxd=0;
+uint32 uart0RoutedPacketsRxd=0;
+uint32 uart0RoutedBytesTxd=0;
+uint32 uart0RoutedPacketsTxd=0;
+
+
 //list of parameters that can be read or set by connected devices
 //either by direct access to variable or through getters and setters
 //their command id is defined by position in the list
@@ -183,7 +198,21 @@ ccParameter exposedParameters[]=
 		{ "RX Demands", CC_UINT16_ARRAY, rxDemands, sizeof(rxDemands) / sizeof(rxDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
 		{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,CC_NO_GETTER,storeSettings },
 		{ "Radio Debug",CC_BOOL,&radioDebug,0,CC_NO_GETTER,CC_NO_SETTER },
-		{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 ,CC_NO_GETTER,CC_NO_SETTER}
+		{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Hardware Type", CC_ENUMERATION, &rxHardwareType, 5 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Hardware Type Enum", CC_ENUMERATION_VALUES, rxHardwareTypeEnumValues,
+			rxHardwareTypeCount ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedBytesRxd",CC_UINT32,&radioRoutedBytesRxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedPacketsRxd",CC_UINT32,&radioRoutedPacketsRxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedBytesTxd",CC_UINT32,&radioRoutedBytesTxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedPacketsTxd",CC_UINT32,&radioRoutedPacketsTxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedBytesRxd",CC_UINT32,&uart0RoutedBytesRxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedPacketsRxd",CC_UINT32,&uart0RoutedPacketsRxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedBytesTxd",CC_UINT32,&uart0RoutedBytesTxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedPacketsTxd",CC_UINT32,&uart0RoutedPacketsTxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RxCrcErrors",CC_UINT32,&pcComsCrcErrors,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Max Intr Latency",CC_UINT32,&maxActualLatency,0,CC_NO_GETTER,CC_NO_SETTER}
+
 };
 ccParameterList parameterList=
 {
@@ -249,6 +278,7 @@ PUBLIC void AppColdStart(void)
 	// set up the exception handlers
 	setExceptionHandlers();
 
+
 	if(!radioDebug)debugRoute=&pcViaComPort;
 	else debugRoute=&pcViaTx;
 
@@ -299,8 +329,8 @@ PUBLIC void AppColdStart(void)
 		rxDemands[i] = 4096;
 
 	// Set up digital inputs and outputs
-	initInputs();
-	initOutputs();
+	initInputs(!radioDebug);
+	initOutputs(!radioDebug);
 
 	// Initialise Analogue peripherals
 	vAHI_ApConfigure(E_AHI_AP_REGULATOR_ENABLE, E_AHI_AP_INT_DISABLE,
@@ -739,22 +769,8 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		int txTime = (psFrame->au8Sdu[1] + (psFrame->au8Sdu[2] << 8)) * 160;
 		int rxTime = (txTime + 2000* 16 ) % (31* 20000* 16 ) ;
 
-		// TODO - fix commented out code
-		//vPrintf("- %d %d",txTime/1600, getSeqClock()/1600);
-
 		// TODO - Explain this
 		calcSyncError(rxTime);
-
-		// TODO - Explain this, seems superfluous as 'ml' isn't used
-		static int ml = 0;
-		if (ml != maxActualLatency)
-		{
-			dbgPrintf("- %d", maxActualLatency);
-			ml = maxActualLatency;
-		}
-
-		// TODO - fix commented out code
-		//vPrintf("- %d",sc/(20000*16));
 
 		// Update global rx data packet counter
 		rxdpackets++;
@@ -1066,6 +1082,9 @@ void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 	{
 		// Send to the tx
 		txComsSendRoutedPacket(msg, len);
+		//store metrics
+		radioRoutedBytesTxd+=len;
+		radioRoutedPacketsTxd++;
 		break;
 	}
 	case CONPC:
@@ -1073,6 +1092,8 @@ void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 		// Wrap routed packet with a 255 cmd to allow coexistance with existing comms
 		// TODO - Fix the command magic number
 		pcComsSendPacket(msg, 0, len, 255);
+		uart0RoutedBytesTxd+=len;
+		uart0RoutedPacketsTxd++;
 		break;
 	}
 	}
@@ -1097,6 +1118,16 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 {
 	// TODO - make a definition for the buffer length
 	uint8 replyBuf[256];
+	if(fromCon==CONTX)
+	{
+		radioRoutedBytesRxd+=len;
+		radioRoutedPacketsRxd++;
+	}
+	else
+	{
+		uart0RoutedBytesRxd+=len;
+		uart0RoutedPacketsRxd++;
+	}
 
 	// See if packet has reached its destination
 	if (rmIsMessageForMe(msg) == TRUE)
@@ -1289,10 +1320,14 @@ void loadGeneralSettings(store* s)
 	while ((tag = storeGetSection(s, &section)) > 0)
 	{
 		switch (tag)
+		{
 		case S_RADIODEBUG:
 			radioDebug=(bool)readUint8(&section);
 			break;
-
+		case S_HARDWARETYPE:
+			rxHardwareType=readUint8(&section);
+			break;
+		}
 	}
 }
 
@@ -1301,6 +1336,7 @@ void saveGeneralSettings(store* s)
 	store section;
 	storeStartSection(s, S_GENERAL, &section);
 	storeUint8Section(&section, S_RADIODEBUG, (uint8)radioDebug);
+	storeUint8Section(&section, S_HARDWARETYPE, rxHardwareType);
 	storeEndSection(s, &section);
 }
 
