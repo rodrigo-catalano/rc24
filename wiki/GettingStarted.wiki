@@ -44,10 +44,9 @@ To build the application, start the IDE and from the menu select File | Open pro
  
 = Flashing code to Modules =
 
-The bin files can be installed on the modules either with Jennic's flash programming utility or the PC app.  You will need a serial TTL level interface for your PC to connect it to the modules, again these can be obtained from Farnell.  
+The bin files can be installed on the modules either with Jennic's flash programming utility or the PC app.  You will need a serial TTL 3.3v level interface for your PC to connect it to the modules, again these can be obtained from Farnell.  
 [http://uk.farnell.com/jsp/displayProduct.jsp?sku=1329311&CMP=KNC-GUK-FUK-GEN-SKU-OTH FTDI usb serial cable]
 [http://www.pololu.com/catalog/product/391 Pololu usb serial if]
-[http://www.pololu.com/catalog/product/1300 Pololu usb serial/avr programmer]
 
 You will need to know the Com Port used by your interface.
 
