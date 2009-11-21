@@ -47,13 +47,14 @@ namespace Serial
             this.buttonrefreshTree = new System.Windows.Forms.Button();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.treeView1 = new System.Windows.Forms.TreeView();
+            this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.propertyGrid1 = new System.Windows.Forms.PropertyGrid();
+            this.commandPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.labelNodeName = new System.Windows.Forms.Label();
             this.buttonResetNode = new System.Windows.Forms.Button();
             this.buttonUploadCode = new System.Windows.Forms.Button();
-            this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            this.commandPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.lcd1 = new Serial.lcd();
+            this.routedComsLoopTestToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             menuStrip1 = new System.Windows.Forms.MenuStrip();
             toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -104,7 +105,8 @@ namespace Serial
             // 
             toolsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             toolStripSeparator2,
-            this.optionsToolStripMenuItem});
+            this.optionsToolStripMenuItem,
+            this.routedComsLoopTestToolStripMenuItem});
             toolsToolStripMenuItem.Name = "toolsToolStripMenuItem";
             toolsToolStripMenuItem.Size = new System.Drawing.Size(55, 22);
             toolsToolStripMenuItem.Text = "Tools";
@@ -112,12 +114,12 @@ namespace Serial
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new System.Drawing.Size(137, 6);
+            toolStripSeparator2.Size = new System.Drawing.Size(216, 6);
             // 
             // optionsToolStripMenuItem
             // 
             this.optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
-            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
+            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(219, 22);
             this.optionsToolStripMenuItem.Text = "Options...";
             this.optionsToolStripMenuItem.Click += new System.EventHandler(this.OptionsToolStripMenuItemClick);
             // 
@@ -145,7 +147,7 @@ namespace Serial
             // buttonProgTx
             // 
             this.buttonProgTx.Location = new System.Drawing.Point(12, 84);
-            this.buttonProgTx.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.buttonProgTx.Margin = new System.Windows.Forms.Padding(4);
             this.buttonProgTx.Name = "buttonProgTx";
             this.buttonProgTx.Size = new System.Drawing.Size(220, 28);
             this.buttonProgTx.TabIndex = 2;
@@ -156,7 +158,7 @@ namespace Serial
             // buttonProgRx
             // 
             this.buttonProgRx.Location = new System.Drawing.Point(12, 119);
-            this.buttonProgRx.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.buttonProgRx.Margin = new System.Windows.Forms.Padding(4);
             this.buttonProgRx.Name = "buttonProgRx";
             this.buttonProgRx.Size = new System.Drawing.Size(220, 28);
             this.buttonProgRx.TabIndex = 3;
@@ -240,6 +242,22 @@ namespace Serial
             this.treeView1.TabIndex = 0;
             this.treeView1.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
             // 
+            // tableLayoutPanel1
+            // 
+            this.tableLayoutPanel1.AutoSize = true;
+            this.tableLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.tableLayoutPanel1.ColumnCount = 1;
+            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel1.Controls.Add(this.propertyGrid1, 0, 1);
+            this.tableLayoutPanel1.Controls.Add(this.commandPanel, 0, 0);
+            this.tableLayoutPanel1.Location = new System.Drawing.Point(3, 42);
+            this.tableLayoutPanel1.Name = "tableLayoutPanel1";
+            this.tableLayoutPanel1.RowCount = 2;
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(386, 324);
+            this.tableLayoutPanel1.TabIndex = 3;
+            // 
             // propertyGrid1
             // 
             this.propertyGrid1.Location = new System.Drawing.Point(3, 8);
@@ -247,6 +265,15 @@ namespace Serial
             this.propertyGrid1.Name = "propertyGrid1";
             this.propertyGrid1.Size = new System.Drawing.Size(380, 314);
             this.propertyGrid1.TabIndex = 4;
+            // 
+            // commandPanel
+            // 
+            this.commandPanel.AutoSize = true;
+            this.commandPanel.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.commandPanel.Location = new System.Drawing.Point(3, 3);
+            this.commandPanel.Name = "commandPanel";
+            this.commandPanel.Size = new System.Drawing.Size(0, 0);
+            this.commandPanel.TabIndex = 5;
             // 
             // labelNodeName
             // 
@@ -281,31 +308,6 @@ namespace Serial
             this.buttonUploadCode.Visible = false;
             this.buttonUploadCode.Click += new System.EventHandler(this.buttonUploadCode_Click);
             // 
-            // tableLayoutPanel1
-            // 
-            this.tableLayoutPanel1.AutoSize = true;
-            this.tableLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.tableLayoutPanel1.ColumnCount = 1;
-            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel1.Controls.Add(this.propertyGrid1, 0, 1);
-            this.tableLayoutPanel1.Controls.Add(this.commandPanel, 0, 0);
-            this.tableLayoutPanel1.Location = new System.Drawing.Point(3, 42);
-            this.tableLayoutPanel1.Name = "tableLayoutPanel1";
-            this.tableLayoutPanel1.RowCount = 2;
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(386, 324);
-            this.tableLayoutPanel1.TabIndex = 3;
-            // 
-            // commandPanel
-            // 
-            this.commandPanel.AutoSize = true;
-            this.commandPanel.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.commandPanel.Location = new System.Drawing.Point(3, 3);
-            this.commandPanel.Name = "commandPanel";
-            this.commandPanel.Size = new System.Drawing.Size(0, 0);
-            this.commandPanel.TabIndex = 5;
-            // 
             // lcd1
             // 
             this.lcd1.Location = new System.Drawing.Point(266, 39);
@@ -313,6 +315,13 @@ namespace Serial
             this.lcd1.Name = "lcd1";
             this.lcd1.Size = new System.Drawing.Size(341, 158);
             this.lcd1.TabIndex = 6;
+            // 
+            // routedComsLoopTestToolStripMenuItem
+            // 
+            this.routedComsLoopTestToolStripMenuItem.Name = "routedComsLoopTestToolStripMenuItem";
+            this.routedComsLoopTestToolStripMenuItem.Size = new System.Drawing.Size(219, 22);
+            this.routedComsLoopTestToolStripMenuItem.Text = "routed coms loop test";
+            this.routedComsLoopTestToolStripMenuItem.Click += new System.EventHandler(this.routedComsLoopTestToolStripMenuItem_Click);
             // 
             // Form1
             // 
@@ -371,6 +380,7 @@ namespace Serial
         private System.Windows.Forms.PropertyGrid propertyGrid1;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.FlowLayoutPanel commandPanel;
+        private System.Windows.Forms.ToolStripMenuItem routedComsLoopTestToolStripMenuItem;
     }
 }
 

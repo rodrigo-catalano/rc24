@@ -59,6 +59,13 @@ namespace rc24
                 return _address;
             }
         }
+        public List<byte> Command
+        {
+            get
+            {
+                return _command;
+            }
+        }
         public byte[] toByteArray()
         {
             byte[] ret = new byte[_address.Length + _command.Count];

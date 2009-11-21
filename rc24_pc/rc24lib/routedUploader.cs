@@ -37,6 +37,7 @@ namespace rc24
         {
             bin = File.ReadAllBytes(filename);
             filePos=0;
+            crc = 0;
         }
 
         public routedMessage sendNextCmd(routedMessage msg)
