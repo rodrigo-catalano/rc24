@@ -56,6 +56,7 @@ namespace Serial
         bootLoaderUploader blupload = new bootLoaderUploader();
         rc24.routedUploader rUpload = null;
         UploadProgress ulProg = null;
+        private loopBackCommsTest loopTest = null;
 
         //      private BackgroundWorker backgroundWorker1;
 
@@ -539,6 +540,19 @@ namespace Serial
                             Debug.WriteLine(activeNode.name + ": Parameter set: " + response.ToString());
                             break;
                         }
+                    case 0xfe: //loop test
+                        {
+                            if (loopTest != null)
+                            {
+                                routedMessage lt = loopTest.sendNextCmd(msg);
+                                if (lt != null) SendRoutedMessage(lt, SERIALCON);
+                                else
+                                {
+                                    MessageBox.Show("Loop back done. Length errors " + loopTest.lengtherrors + " content errors " + loopTest.contenterrors);
+                                }
+                            }
+                            break;
+                        }
                 }
             }
             else
@@ -694,47 +708,53 @@ namespace Serial
                     byte pType = reader.ReadByte();
                     byte pArrayLen = reader.ReadByte();
 
-                    ccParameter property = new ccParameter(pIdx, pName, pType, pArrayLen,activeNode);
-                    activeNode.properties.Add(pName, property);
-
-                    //bind to property editor
-                    if (property.TypeIdx != ccParameter.CC_ENUMERATION_VALUES && property.TypeIdx != ccParameter.CC_VOID_FUNCTION )
+                    try
                     {
-                        Flobbster.Windows.Forms.PropertySpec p =
-                            new Flobbster.Windows.Forms.PropertySpec(pName, property.type, "Parameters");
+                        ccParameter property = new ccParameter(pIdx, pName, pType, pArrayLen, activeNode);
+                        activeNode.properties.Add(pName, property);
 
-                        if (property.TypeIdx == ccParameter.CC_ENUMERATION)
+                        //bind to property editor
+                        if (property.TypeIdx != ccParameter.CC_ENUMERATION_VALUES && property.TypeIdx != ccParameter.CC_VOID_FUNCTION)
                         {
-                            p.ConverterTypeName = "Serial.CC_EnumTypeConverter";
+                            Flobbster.Windows.Forms.PropertySpec p =
+                                new Flobbster.Windows.Forms.PropertySpec(pName, property.type, "Parameters");
+
+                            if (property.TypeIdx == ccParameter.CC_ENUMERATION)
+                            {
+                                p.ConverterTypeName = "Serial.CC_EnumTypeConverter";
+                            }
+                            nodeParameterList.Properties.Add(p);
+
+                            propertyGrid1.Refresh();
                         }
-                        nodeParameterList.Properties.Add(p);
-
-                        propertyGrid1.Refresh();
-                    }
-                    if (property.TypeIdx == ccParameter.CC_VOID_FUNCTION)
-                    {
-                        Button cmdButton = new Button();
-                        cmdButton.Text = pName;
-                        cmdButton.Tag = property;
-                        cmdButton.AutoSize = true;
-                        cmdButton.Click += new EventHandler(cmdButton_Click);
-                        commandPanel.Controls.Add(cmdButton);
-
-                        if (activeNode.parameterCount > activeNode.properties.Count)
+                        if (property.TypeIdx == ccParameter.CC_VOID_FUNCTION)
                         {
-                            //get next parameter
-                            routedMessage msgGetMeta = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x6, (byte)activeNode.properties.Count });
-                            SendRoutedMessage(msgGetMeta, SERIALCON);
-                        }
-                    
-                    }
-                    else
-                    {
-                        //get value
-                        routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx, 0x00, pArrayLen });
-                        SendRoutedMessage(msgValReq, SERIALCON);
-                    }
+                            Button cmdButton = new Button();
+                            cmdButton.Text = pName;
+                            cmdButton.Tag = property;
+                            cmdButton.AutoSize = true;
+                            cmdButton.Click += new EventHandler(cmdButton_Click);
+                            commandPanel.Controls.Add(cmdButton);
 
+                            if (activeNode.parameterCount > activeNode.properties.Count)
+                            {
+                                //get next parameter
+                                routedMessage msgGetMeta = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x6, (byte)activeNode.properties.Count });
+                                SendRoutedMessage(msgGetMeta, SERIALCON);
+                            }
+
+                        }
+                        else
+                        {
+                            //get value
+                            routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx, 0x00, pArrayLen });
+                            SendRoutedMessage(msgValReq, SERIALCON);
+                        }
+                    }
+                    catch (Exception pe)
+                    {
+                        MessageBox.Show("get parameter error" + pe.Message);
+                    }
                     break;
             }
         }
@@ -796,6 +816,15 @@ namespace Serial
             {
                 inp.Close();
             }
+        }
+
+        private void routedComsLoopTestToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //send message to self via tx and rx
+           
+            loopTest = new loopBackCommsTest(500,new route(new byte[]{48,0,0,1},0));
+            //loopTest = new loopBackCommsTest(500,new route(new byte[]{16,1},0));
+            SendRoutedMessage(loopTest.sendNextCmd(null), SERIALCON);
         }
     }
     

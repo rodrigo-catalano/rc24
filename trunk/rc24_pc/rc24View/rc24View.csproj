@@ -87,6 +87,7 @@
     <Compile Include="lcd.Designer.cs">
       <DependentUpon>lcd.cs</DependentUpon>
     </Compile>
+    <Compile Include="loopBackCommsTest.cs" />
     <Compile Include="model.cs">
       <SubType>Form</SubType>
     </Compile>
