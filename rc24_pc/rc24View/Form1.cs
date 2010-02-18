@@ -88,6 +88,7 @@ namespace Serial
 
             nodeParameterList.SetValue += new Flobbster.Windows.Forms.PropertySpecEventHandler(nodeParameterList_SetValue);
             propertyGrid1.SelectedObject = nodeParameterList;
+
         }
 
         void nodeParameterList_SetValue(object sender, Flobbster.Windows.Forms.PropertySpecEventArgs e)
@@ -123,6 +124,10 @@ namespace Serial
             DateTime t = DateTime.Now;
             if (t.Subtract(lastData).TotalMilliseconds > 200)
             {
+                if (jennicMsgNextIdx > 0)
+                {
+                    SetText("#");
+                }
                 jennicMsgNextIdx = 0;
             }
             lastData = t;
@@ -264,6 +269,7 @@ namespace Serial
                 }
                 if (buff[len] != checksum)
                 {
+                    SetText("@");
                     return;
                 }
                 byte cmd = buff[1];
@@ -296,6 +302,10 @@ namespace Serial
                 }
                 else
                 {
+                    if (cmd == 0xfe)
+                    {
+
+                    }
                 }
 
                 return;
@@ -309,6 +319,7 @@ namespace Serial
             
             // Create the serial port
             inp = new SerialPort(mus.comPort, 38400, Parity.None, 8, StopBits.One);
+             //    inp = new SerialPort(mus.comPort, 250000, Parity.None, 8, StopBits.One);
             
             
             // Hook-up the port data handler
@@ -349,7 +360,18 @@ namespace Serial
         private void timer1_Tick(object sender, EventArgs e)
         {
             timer1.Enabled = false;
-            blupload.timeout();
+       //     blupload.timeout();
+            if (treeWalker != null)
+            {
+                routedMessage resp = treeWalker.getNextRequest();
+                if (resp != null)
+                {
+                    timer1.Enabled = true;
+                    timer1.Start();
+                    SendRoutedMessage(resp, 0);
+                }
+            }
+
         }
 
         private void buttonimageimport_Click(object sender, EventArgs e)
@@ -416,9 +438,18 @@ namespace Serial
                         {
                             if (treeWalker != null)
                             {
+                                //clear timeout
+                                timer1.Stop();
+                                timer1.Enabled = false;
+                                
                                 treeWalker.enumerateResponse(msg);
                                 routedMessage resp = treeWalker.getNextRequest();
-                                if (resp != null) SendRoutedMessage(resp, 0);
+                                if (resp != null) 
+                                {
+                                    timer1.Enabled = true;
+                                    timer1.Start();
+                                    SendRoutedMessage(resp, 0);
+                                }
                                 else
                                 {
 
@@ -515,12 +546,7 @@ namespace Serial
                             byte paramIdx = reader.ReadByte();
                             //depending on type read value
 
-                          //  byte val = msg.readByte();
-
                             activeNode.getParamByIdx((int)paramIdx).parseValue(msg);
-
-
-                            //    nodeParameterList[NodeParameterNames[paramIdx]] = val;
 
                             propertyGrid1.Refresh();
 
@@ -581,6 +607,7 @@ namespace Serial
             switch (toCon)
             {
                 case 0: JennicPacket.Write(inp, buff, offset, len, 0xff); break;
+//                case 0: JennicPacket.Write(inp, buff, offset, len, 0xfe); break;
             }
         }
         private void bindtree(routedNode node)
@@ -618,13 +645,16 @@ namespace Serial
                     buttonResetNode.Visible = true;
                     getNodeParameters();
                     break;
-                default:
+                case "PC":
                     buttonUploadCode.Visible = false;
                     buttonResetNode.Visible = false;
                     nodeParameterList.Properties.Clear();
                     activeNode.properties.Clear();
                     clearPropertyViewer();
                     propertyGrid1.Refresh();
+                    break;
+                default:
+                    getNodeParameters();
                     break;
             }
         }
@@ -662,24 +692,7 @@ namespace Serial
             clearPropertyViewer();
             propertyGrid1.Refresh();
 
-
-            /*
-
-            ccParameter property = new ccParameter(10, "test enum", 1, 0);
-            activeNode.properties.Add("test enum", property);
-
-
-            Flobbster.Windows.Forms.PropertySpec p =
-                       new Flobbster.Windows.Forms.PropertySpec("test enum", typeof(string), "Parameters");
-            p.ConverterTypeName = "Serial.ListTypeConverter";
-            p.BoundObject = property;
-            nodeParameterList.Properties.Add(p);
-
-            propertyGrid1.Refresh();
-
-            */
-
-
+                 
             //send get parameter count command
             routedMessage msg = new routedMessage(activeNode.address, new byte[] { 0x0a, 0x4, 0x00 });
             SendRoutedMessage(msg, SERIALCON);
@@ -824,6 +837,9 @@ namespace Serial
            
             loopTest = new loopBackCommsTest(500,new route(new byte[]{48,0,0,1},0));
             //loopTest = new loopBackCommsTest(500,new route(new byte[]{16,1},0));
+            
+        //    loopTest = new loopBackCommsTest(50,new route(new byte[]{16,0},0));
+       //     loopTest = new loopBackCommsTest(50, new route(new byte[] { 0 }, 0));
             SendRoutedMessage(loopTest.sendNextCmd(null), SERIALCON);
         }
     }
