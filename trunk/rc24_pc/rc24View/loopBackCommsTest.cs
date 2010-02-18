@@ -37,10 +37,13 @@ namespace Serial
                     {
                         if (message[i] != msg.Command[i]) ok = false;
                     }
-                    if(!ok)
+                    if (!ok)
                     {
                         contenterrors++;
                         MessageBox.Show("content error");
+                    }
+                    else
+                    {
                     }
                 }
 

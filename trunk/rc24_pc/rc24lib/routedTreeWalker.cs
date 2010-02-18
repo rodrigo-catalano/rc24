@@ -42,23 +42,29 @@ namespace rc24
 
             reader.ReadByte();
             
-            string name=reader.ReadString();  
+            string name=reader.ReadString();
 
             //add to tree under parent
             //_parent.findNode(from);
             routedNode p=_parent;
             
             //problem with not having the first part of the address
-            //todo do it properly!
+            // TODO do it properly!
+                       
             int i;
-            for (i = 0; i < from.Length - 2; i++)
+            if (from.Length > 1)
             {
-                byte childIdx = from.getLink(i);
-                p = p.children[childIdx];
+                p = p.children[0];
+                for (i = 1; i < from.Length - 1; i++)
+                {
+                    byte childIdx = from.getLink(i-1);
+                    p = p.children[childIdx];
+                }
+                p.children.Add(from.getLink(i - 1), new routedNode(name, from));
             }
-            if (from.Length == 1) p.children.Add(0, new routedNode(name, from));
-            else if (from.Length == 2) p.children[0].children.Add(0, new routedNode(name, from));
-            else p.children.Add(from.getLink(i), new routedNode(name,from));
+            else p.children.Add(0, new routedNode(name, from));
+         //   else if (from.Length == 2) p.children[0].children.Add((byte)p.children[0].children.Count, new routedNode(name, from));
+        //    else p.children.Add(from.getLink(i-1), new routedNode(name,from));
             
             //add children to unwalked list
 
@@ -77,7 +83,7 @@ namespace rc24
             //take child off top of list
             if(UnwalkedRoutes.Count>0)
             {
-                route next=UnwalkedRoutes[0];
+                route next = UnwalkedRoutes[0];
                 UnwalkedRoutes.RemoveAt(0);
 
                 routedMessage request=new routedMessage(next,enumerateMsg);
