@@ -26,7 +26,7 @@ Copyright 2008 - 2009 © Alan Hopper
 #include <mac_sap.h>
 #include <mac_pib.h>
 #include <stdio.h>
-
+#include "routedmessage.h"
 #include "pcComs.h"
 #include "swEventQueue.h"
 #include "hopping.h"
@@ -238,7 +238,7 @@ void pcComsParsePacket(void* buff)
             case 0x25: //read flash type
             {
                 retbuf[0]=0;
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
                 retbuf[1]=0x12;
                 retbuf[2]=0x12;
 #else

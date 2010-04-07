@@ -20,6 +20,8 @@ Copyright 2008 - 2009 © Alan Hopper
 */
 #include <string.h>
 #include <jendefs.h>
+#include "routedmessage.h"
+
 #include "pccoms.h"
 
 #include "radiocoms.h"

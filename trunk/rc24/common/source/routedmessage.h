@@ -18,6 +18,11 @@ Copyright 2008 - 2009 © Alan Hopper
 
 
 */
+
+// definiton of function that can receive a routed message
+typedef void (*COMMS_CALLBACK_FN)(uint8* msg,uint8 len,uint8 fromCon);
+
+
 //this defines a full route including the first step that is not included
 //in a routed message packet
 typedef struct

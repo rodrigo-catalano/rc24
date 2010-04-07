@@ -32,10 +32,11 @@
 #define	rx3dot2_4chan_gps 1
 #define	rxsc1 2
 #define rx_GB_1dot2 3
+#define	rx3dot2_5chan_1wire 4
 
 
-PUBLIC char* rxHardwareTypeEnumValues[] =
-{ "rx3.2 6 channnel", "rx3.2 4 channel + gps", "rx single cell 1.0", "rx GB 1.2" };
+PUBLIC char* rxHardwareTypeEnumValues[rxHardwareTypeCount] =
+{ "rx3.2 6 channnel", "rx3.2 4 channel + gps", "rx single cell 1.0", "rx GB 1.2","rx3.2 5 channel + 1wire" };
 
 //PUBLIC const size_t rxHardwareTypeCount=sizeof(rxHardwareTypeEnumValues) / sizeof(rxHardwareTypeEnumValues[0];
 
@@ -76,6 +77,30 @@ opChannel standard6channel[20] = {
 	{ nc, 0},
 	{ nc, 0 }
 };
+// Set up for 5ch standard servo output + 1 wire bus on uart1
+opChannel standard5channel_1wire[20] = {
+	{ servopwm, E_AHI_DIO6_INT},
+	{ servopwm, E_AHI_DIO7_INT},
+	{ servopwm, E_AHI_DIO10_INT},
+	{ servopwm, E_AHI_DIO15_INT},
+	{ servopwm, E_AHI_DIO14_INT},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0},
+	{ nc, 0 }
+};
+
 
 // Set up for GB rx 1.2 with 8 channels
 opChannel gb1_2_8channel[20] = {
@@ -169,15 +194,16 @@ PRIVATE opChannel* outputMapping;
  * NOTES:
  *  None.
  ****************************************************************************/
-void initInputs(bool uart0InUse)
+void initInputs(rxHardwareOptions* rxHardware)
 {
 	// TODO - allow conditional compilation
 	// or selection from flash settings
 	// or make this file a template for people to put their private implementations in
 
-	if(!uart0InUse && rxHardwareType == rx3dot2_4chan_gps)
+	if(!rxHardware->uart0InUse && rxHardwareType == rx3dot2_4chan_gps)
 	{
 		initNmeaGps(E_AHI_UART_0,E_AHI_UART_RATE_38400);
+		rxHardware->uart0InUse=TRUE;
 	}
 }
 
@@ -196,20 +222,40 @@ void initInputs(bool uart0InUse)
  * NOTES:
  *  None.
  ****************************************************************************/
-void initOutputs(bool uart0InUse)
+void initOutputs(rxHardwareOptions* rxHardware)
 {
 	int nservos = 0;	// Count of number of configured servos
+
+	rxHardware->ledBit=(1 << 17);
+
+	rxHardware->batVoltageChannel=E_AHI_ADC_SRC_ADC_4;
+	rxHardware->batVoltageMultiplier=1331; //2.4*12.2/2.2
+	rxHardware->batVoltageOffset=0;
 
 	switch(rxHardwareType)
 	{
 	case rx3dot2_6chan :
 		outputMapping=standard6channel;
+		rxHardware->ledBit=(1 << 5);
 		break;
 	case rx3dot2_4chan_gps :
 		outputMapping=gps;
+		rxHardware->ledBit=(1 << 5);
+		break;
+	case rx3dot2_5chan_1wire :
+		outputMapping=standard5channel_1wire;
+		rxHardware->ledBit=(1 << 5);
+		rxHardware->oneWirePort=E_AHI_UART_1;
+		rxHardware->oneWireEnabled=TRUE;
+		rxHardware->uart1InUse=TRUE;
 		break;
 	case rxsc1 :
 		outputMapping = rxsc1_5servo;
+		//use internal bat monitor
+		rxHardware->batVoltageChannel=E_AHI_ADC_SRC_VOLT;
+		rxHardware->batVoltageMultiplier=360;
+		rxHardware->batVoltageOffset=60;
+
 		break;
 	case rx_GB_1dot2 :
 		outputMapping = gb1_2_8channel;
@@ -221,9 +267,17 @@ void initOutputs(bool uart0InUse)
 	for (i = 0; i < 20; i++)
 	{
 		//prevent output on uart0 pins if used
-		if(uart0InUse)
+		if(rxHardware->uart0InUse)
 		{
 			if(outputMapping[i].pin==E_AHI_DIO6_INT || outputMapping[i].pin==E_AHI_DIO7_INT)
+			{
+				outputMapping[i].type=nc;
+			}
+		}
+		//prevent output on uart1 pins if used
+		if(rxHardware->uart1InUse)
+		{
+			if(outputMapping[i].pin==E_AHI_DIO19_INT || outputMapping[i].pin==E_AHI_DIO20_INT)
 			{
 				outputMapping[i].type=nc;
 			}

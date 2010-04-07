@@ -37,15 +37,28 @@ typedef struct
 	uint32 pin;
 } opChannel;
 
+typedef struct
+{
+	uint32 ledBit;
+	uint8 batVoltageChannel;
+	uint16 batVoltageMultiplier;
+	uint16 batVoltageOffset;
+	bool uart0InUse;
+	bool uart1InUse;
+	bool i2cInUse;
+	bool oneWireEnabled;
+	uint8 oneWirePort;
+}rxHardwareOptions;
+
 /****************************************************************************/
 /***        Exported Function Prototypes                                  ***/
 /****************************************************************************/
 
 // Initialise the receiver inputs
-void initInputs(bool uart0InUse);
+void initInputs(rxHardwareOptions* rxHardware);
 
 // Initialise the receiver outputs
-void initOutputs(bool uart0InUse);
+void initOutputs(rxHardwareOptions* rxHardware);
 
 // Update the outputs
 void updateOutputs(uint16* channelData);
@@ -53,5 +66,5 @@ void updateOutputs(uint16* channelData);
 extern char* rxHardwareTypeEnumValues[];
 //extern const size_t rxHardwareTypeCount;
 // TODO fix
-#define rxHardwareTypeCount 4
+#define rxHardwareTypeCount 5
 extern uint8 rxHardwareType;
