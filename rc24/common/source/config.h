@@ -1,43 +1,23 @@
-/*****************************************************************************
- *
- * MODULE:              config.h
- *
- * COMPONENT:           $RCSfile: config.h,v $
- *
- * VERSION:             $Name: JN-RM-2024-1v0 $
- *
- * REVISION:            $Revision: 1.2 $
- *
- * DATED:               $Date: 2006/09/07 14:23:55 $
- *
- * STATUS:              $State: Exp $
- *
- * AUTHOR:
- *
- * DESCRIPTION:
- *
- * LAST MODIFIED BY:    $Author: imorr $
- *                      $Modtime: $
- *
- ****************************************************************************
- *
- * This software is owned by Jennic and/or its supplier and is protected
- * under applicable copyright laws. All rights are reserved. We grant You,
- * and any third parties, a license to use this software solely and
- * exclusively on Jennic products. You, and any third parties must reproduce
- * the copyright and warranty notice and any other legend of ownership on each
- * copy or partial copy of the software.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS". JENNIC MAKES NO WARRANTIES, WHETHER
- * EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT NOT LIMITED TO, IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * ACCURACY OR LACK OF NEGLIGENCE. JENNIC SHALL NOT, IN ANY CIRCUMSTANCES,
- * BE LIABLE FOR ANY DAMAGES, INCLUDING, BUT NOT LIMITED TO, SPECIAL,
- * INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR ANY REASON WHATSOEVER.
- *
- * Copyright Jennic Ltd 2005, 2006. All rights reserved
- *
- ****************************************************************************/
+/*
+Copyright 2008 - 2009 © Alan Hopper
+
+	This file is part of rc24.
+
+    rc24 is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    rc24 is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with rc24.  If not, see <http://www.gnu.org/licenses/>.
+
+
+*/
 
 #ifndef  CONFIG_H_INCLUDED
 #define  CONFIG_H_INCLUDED
@@ -58,12 +38,10 @@ extern "C" {
 #define PAN_ID 9826
 #define COORDINATOR_ADR 0
 
-#define TX_ADDRESS_MODE 0
+#define TX_ADDRESS_MODE 3
 #define RX_ADDRESS_MODE 3
 
 #define PAYLOAD_SIZE 10
-
-#define JTOL                 16
 
 
 

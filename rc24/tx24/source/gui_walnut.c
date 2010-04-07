@@ -44,13 +44,14 @@
 #include "display.h"
 #include "wii.h"
 #include "ppm.h"
+#include "routedmessage.h"
 #include "pcComs.h"
 #include "swEventQueue.h"
 #include "tsc2003.h"
 
 #include "smbus.h"
 
-#include "routedmessage.h"
+
 #include "codeupdate.h"
 #include "radiocoms.h"
 #include "hwutils.h"

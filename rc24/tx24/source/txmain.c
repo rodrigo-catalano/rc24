@@ -39,13 +39,13 @@
 #include "display.h"
 #include "wii.h"
 #include "ppm.h"
+#include "routedmessage.h"
 #include "pcComs.h"
 #include "swEventQueue.h"
 #include "tsc2003.h"
 
 #include "smbus.h"
 
-#include "routedmessage.h"
 #include "codeupdate.h"
 #include "radiocoms.h"
 #include "hwutils.h"
@@ -54,6 +54,8 @@
 #include "commonCommands.h"
 
 #include "exceptions.h"
+
+//#include "scriptIL.h"
 
 /* Data type for storing data related to all end devices that have associated */
 typedef struct
@@ -459,6 +461,63 @@ PUBLIC void AppColdStart(void)
 	msg[1] = 0;//0xff;
 
 	//   txSendRoutedMessage(msg,2, CONRX);
+
+
+	char code[]="steer = in1 * 10 + trim1";
+/*
+#alula
+	if s1
+	{
+		elvrate=30
+		ailrate=60
+	}
+	else
+	{
+		elvrate=50
+		ailrate=100
+	}
+
+	ail=in1*ailrate
+	ail=ail/100
+	ail=ail+trim1
+	elev=in2*elvrate
+	elev=in2/100
+	elev=elev+trim2
+	op1=elev-ail
+	op2=elv+ail
+
+	vs
+	//with fixed point
+
+	ail=in1*ailrate
+	ail=ail+trim1
+	elev=in2*elvrate
+	elev=elev+trim2
+	op1=elev-ail
+	op2=elv+ail
+
+
+	vs
+	//with full expression evaluator
+	 *
+	ail=in1*ailrate+trim1
+	elev=in2*elevrate+trim2
+	op1=elev-ail
+	op2=elv+ail
+
+	op1 op2 = vtail ail elev
+
+	std
+
+	op1 = 100 * in1
+
+	op1 = stdmix in1 rate trim top bottom
+
+
+
+
+
+*/
 
 	while (1)
 	{
@@ -1470,8 +1529,8 @@ void updateDisplay()
 	//   txbat=u16ReadADC(E_AHI_ADC_SRC_VOLT);//3838 4096 = 2.4*1.5 =3.6v
 	//   txbat=txbat*360/4096;
 
-	rxbat = rxData[5];
-	rxbat = rxbat * 360 / 4096;
+
+	rxbat = rxData[14];
 
 	txretries = retryPackets - 100;
 	rxpackets = rxData[6];
@@ -1527,7 +1586,12 @@ void checkBattery()
 		step=512;
 		lastDacTry=1023;
 	}
+	//jn5148 has 12 bit dacs
+#ifdef JN5148
+	vAHI_DacOutput (E_AHI_AP_DAC_1,lastDacTry<<1);
+#else
 	vAHI_DacOutput (E_AHI_AP_DAC_1,lastDacTry);
+#endif
 }
 
 void CalibrateJoysticksTopRight()

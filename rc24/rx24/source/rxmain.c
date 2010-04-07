@@ -40,6 +40,7 @@
 #include "radiocoms.h"
 #include "commonCommands.h"
 #include "exceptions.h"
+#include "oneWireBus.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -47,12 +48,10 @@
 
 #define CONTX 0
 #define CONPC 1
+#define CONONEWIRE 2
 
 #define FRAME_RATE 20	// Frame rate in Hz
 
-// TODO make led channel come from settings and be optional
-#define RX_LED_BIT		(1 << 17)			// DIO for LED
-//#define RX_LED_BIT		(1 << 5)			// DIO for LED
 #define LED_FLASH_SLOW 	(FRAME_RATE * 2)	// Flash every 2 secs
 #define LED_FLASH_MED  	FRAME_RATE			// Flash every second
 #define LED_FLASH_FAST 	(FRAME_RATE / 2)	// Flash twice per sec
@@ -189,6 +188,10 @@ uint32 uart0RoutedPacketsRxd=0;
 uint32 uart0RoutedBytesTxd=0;
 uint32 uart0RoutedPacketsTxd=0;
 
+//rx hardware settings
+rxHardwareOptions rxHardware;
+
+oneWireBus sensorBus1;
 
 //list of parameters that can be read or set by connected devices
 //either by direct access to variable or through getters and setters
@@ -287,6 +290,7 @@ PUBLIC void AppColdStart(void)
 		// Don't use uart pins for servo op
 		initPcComs(&pccoms, CONPC, 0, rxHandleRoutedMessage);
 		vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
+		rxHardware.uart0InUse=TRUE;
 	}
 
 
@@ -319,8 +323,6 @@ PUBLIC void AppColdStart(void)
 	// Use dio 16 for test sync pulse
 	vAHI_DioSetDirection(0, 1 << 16);
 
-	// Use DIO 17 for the LED
-	vAHI_DioSetDirection(0, RX_LED_BIT);
 
 	// Set demands to impossible values
 	// TODO - fix magic numbers grrr
@@ -328,9 +330,19 @@ PUBLIC void AppColdStart(void)
 	for (i = 0; i < 20; i++)
 		rxDemands[i] = 4096;
 
+
 	// Set up digital inputs and outputs
-	initInputs(!radioDebug);
-	initOutputs(!radioDebug);
+	initInputs(&rxHardware);
+	initOutputs(&rxHardware);
+
+	if(rxHardware.oneWireEnabled==TRUE)
+	{
+		// enable onewire sensor bus
+		initOneWireBus(&sensorBus1,CONONEWIRE,rxHardware.oneWirePort,rxHandleRoutedMessage);
+	}
+
+	// Setup DIO  for the LED
+	vAHI_DioSetDirection(0, rxHardware.ledBit);
 
 	// Initialise Analogue peripherals
 	vAHI_ApConfigure(E_AHI_AP_REGULATOR_ENABLE, E_AHI_AP_INT_DISABLE,
@@ -426,7 +438,7 @@ void frameStartEvent(void* buff)
 	{
 		// We have bound, set the LED on
 		rxLEDState = TRUE;
-		vAHI_DioSetOutput(RX_LED_BIT, 0);
+		vAHI_DioSetOutput(rxHardware.ledBit, 0);
 	}
 	else
 	{
@@ -442,9 +454,9 @@ void frameStartEvent(void* buff)
 
 			// Set the output accordingly
 			if (rxLEDState)
-				vAHI_DioSetOutput(RX_LED_BIT, 0);
+				vAHI_DioSetOutput(rxHardware.ledBit, 0);
 			else
-				vAHI_DioSetOutput(0, RX_LED_BIT);
+				vAHI_DioSetOutput(0, rxHardware.ledBit);
 
 			// Reset the counter for the next cycle
 			rxLEDFlashCount = 0;
@@ -816,7 +828,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 
 			// If unable to read GPS data skip the GPS data items
 			if (readNmeaGps(&gpsData) == FALSE)
-				returnPacketIdx = 14;
+				returnPacketIdx = 13;
 			break;
 		}
 		case 7:
@@ -876,6 +888,16 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 			packetLen = 6;
 			break;
 		}
+		case 14:
+		{
+			//corrected battery voltage in 0.01v units
+			val = u16ReadADC(rxHardware.batVoltageChannel);
+			int volts=val*rxHardware.batVoltageMultiplier/4096+rxHardware.batVoltageOffset;
+			au8Packet[2] = volts & 0xff;
+			au8Packet[3] = volts >> 8;
+
+
+		}
 		}
 
 		// Set the data length
@@ -888,7 +910,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		returnPacketIdx++;
 
 		// If the last data type has been sent, reset to 0
-		if (returnPacketIdx >= 14)
+		if (returnPacketIdx >= 15)
 			returnPacketIdx = 0;
 	}
 }
@@ -1096,6 +1118,14 @@ void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 		uart0RoutedPacketsTxd++;
 		break;
 	}
+	case CONONEWIRE:
+	{
+		if(rxHardware.oneWireEnabled==TRUE)
+		{
+			oneWireHandleRoutedMessage(msg, len, 0);
+		}
+		break;
+	}
 	}
 }
 
@@ -1155,12 +1185,12 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			*replyBody++ = 'X';
 			// TODO - ???
 			uint8 i;
-			for (i = 0; i < 2; i++)
+			for (i = 0; i < 3; i++)
 			{
 				if (i != fromCon)
 					*replyBody++ = i;
 			}
-			replyLen = 5;
+			replyLen = 6;
 			break;
 		}
 		case CMD_ENUM_GROUP :

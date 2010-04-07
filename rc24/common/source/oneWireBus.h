@@ -27,14 +27,10 @@ typedef struct
     uint8  comm_port;
     COMMS_CALLBACK_FN callback;
 
-}pcCom;
+}oneWireBus;
 
 extern uint32 pcComsCrcErrors;
 
-void initPcComs(pcCom* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb);
-void pcComsSendPacket(uint8 buff[], int start, uint8 length, uint8 cmd);
-void pcComsSendPacket2(uint8 buff[], int start, uint8 length, uint8 cmd,uint8 cmd2);
-uint8* getUploadBuffer(int* len);
-void pcComsPrintf(const char *fmt, ...);
-PUBLIC void vFifoPutC(unsigned char c);
+void initOneWireBus(oneWireBus* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb);
+void oneWireHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon);
 

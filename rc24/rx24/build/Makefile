@@ -100,6 +100,7 @@ APPSRC += codeUpdate.c
 APPSRC += radiocoms.c
 APPSRC += commonCommands.c
 APPSRC += exceptions.c
+APPSRC += oneWireBus.c
 
 APPSRC += AppQueueApi.c
 APPSRC += Printf.c
