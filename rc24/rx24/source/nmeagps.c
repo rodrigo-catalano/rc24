@@ -152,6 +152,8 @@ void initNmeaGps(uint8 uart,int baudrate)
     if(uart==E_AHI_UART_0)vAHI_Uart0RegisterCallback(nmea_HandleUartInterrupt);
     else vAHI_Uart1RegisterCallback(nmea_HandleUartInterrupt);
 
+    vAHI_UartSetRTSCTS(uart, FALSE);
+
     vAHI_UartEnable(uart);
     vAHI_UartReset(uart, TRUE, TRUE);
     vAHI_UartReset(uart, FALSE, FALSE);
@@ -179,6 +181,7 @@ bool readNmeaGps(nmeaGpsData* data)
         data->nmeatrack=nmeatrack;
         data->nmeatime=nmeatime;
         nmeaNewData=FALSE;
+        data->nmeaPacketsRxd++;
         return TRUE;
     }
     else return FALSE;

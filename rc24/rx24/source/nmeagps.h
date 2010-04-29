@@ -29,6 +29,8 @@ typedef struct
     int nmeatime;
     int nmeatrack;
     int nmeasats;
+    uint32 nmeaPacketsRxd;
+
 }nmeaGpsData;
 
 void initNmeaGps(uint8 uart,int baudrate);
