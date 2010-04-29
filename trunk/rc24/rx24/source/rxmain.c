@@ -99,6 +99,9 @@ typedef struct
 //store general section items and sections
 #define	S_RADIODEBUG (1 | STOREINT8)
 #define	S_HARDWARETYPE (2 | STOREINT8)
+#define	S_ONEWIREPORT (3 | STOREINT8)
+#define	S_GPSPORT (4 | STOREINT8)
+
 
 //store radio section items and sections
 #define	S_HIGHPOWERMODULE (1| STOREINT8)
@@ -188,6 +191,10 @@ uint32 uart0RoutedPacketsRxd=0;
 uint32 uart0RoutedBytesTxd=0;
 uint32 uart0RoutedPacketsTxd=0;
 
+
+PUBLIC char* rxComPortEnumValues[3] =
+{ "Disabled","UART 0", "UART 1" };
+
 //rx hardware settings
 rxHardwareOptions rxHardware;
 
@@ -214,7 +221,13 @@ ccParameter exposedParameters[]=
 		{ "uart0RoutedBytesTxd",CC_UINT32,&uart0RoutedBytesTxd,0,CC_NO_GETTER,CC_NO_SETTER},
 		{ "uart0RoutedPacketsTxd",CC_UINT32,&uart0RoutedPacketsTxd,0,CC_NO_GETTER,CC_NO_SETTER},
 		{ "uart0RxCrcErrors",CC_UINT32,&pcComsCrcErrors,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Max Intr Latency",CC_UINT32,&maxActualLatency,0,CC_NO_GETTER,CC_NO_SETTER}
+		{ "Max Intr Latency",CC_UINT32,&maxActualLatency,0,CC_NO_GETTER,CC_NO_SETTER},
+
+		{ "One Wire Comm", CC_ENUMERATION, &rxHardware.desiredOneWirePort,18 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "GPS Comm", CC_ENUMERATION, &rxHardware.desiredGpsPort, 18 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Com Port Enum", CC_ENUMERATION_VALUES, rxComPortEnumValues,
+					sizeof(rxComPortEnumValues)/sizeof(rxComPortEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "gpsPacketsRxd",CC_UINT32,&gpsData.nmeaPacketsRxd,0,CC_NO_GETTER,CC_NO_SETTER},
 
 };
 ccParameterList parameterList=
@@ -331,6 +344,9 @@ PUBLIC void AppColdStart(void)
 		rxDemands[i] = 4096;
 
 
+
+
+
 	// Set up digital inputs and outputs
 	initInputs(&rxHardware);
 	initOutputs(&rxHardware);
@@ -339,6 +355,10 @@ PUBLIC void AppColdStart(void)
 	{
 		// enable onewire sensor bus
 		initOneWireBus(&sensorBus1,CONONEWIRE,rxHardware.oneWirePort,rxHandleRoutedMessage);
+	}
+	if(rxHardware.gpsEnabled==TRUE)
+	{
+		initNmeaGps(rxHardware.gpsPort, E_AHI_UART_RATE_38400);
 	}
 
 	// Setup DIO  for the LED
@@ -1285,7 +1305,13 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
  ****************************************************************************/
 void loadDefaultSettings()
 {
-	// TODO - Add some code
+	rxHardware.desiredOneWirePort=INPUTNOTCONNECTED;
+	rxHardware.desiredGpsPort=INPUTNOTCONNECTED;
+	rxHardware.uart0InUse=FALSE;
+	rxHardware.uart1InUse=FALSE;
+	rxHardware.oneWireEnabled=FALSE;
+	rxHardware.gpsEnabled=FALSE;
+
 }
 
 /****************************************************************************
@@ -1357,6 +1383,12 @@ void loadGeneralSettings(store* s)
 		case S_HARDWARETYPE:
 			rxHardwareType=readUint8(&section);
 			break;
+		case S_ONEWIREPORT:
+			rxHardware.desiredOneWirePort=readUint8(&section);
+			break;
+		case S_GPSPORT:
+			rxHardware.desiredGpsPort=readUint8(&section);
+			break;
 		}
 	}
 }
@@ -1367,6 +1399,9 @@ void saveGeneralSettings(store* s)
 	storeStartSection(s, S_GENERAL, &section);
 	storeUint8Section(&section, S_RADIODEBUG, (uint8)radioDebug);
 	storeUint8Section(&section, S_HARDWARETYPE, rxHardwareType);
+	storeUint8Section(&section, S_ONEWIREPORT, rxHardware.desiredOneWirePort);
+	storeUint8Section(&section, S_GPSPORT, rxHardware.desiredGpsPort);
+
 	storeEndSection(s, &section);
 }
 

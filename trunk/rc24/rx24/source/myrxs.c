@@ -26,7 +26,6 @@
 #include "swEventQueue.h"
 #include "servopwm.h"
 #include "motorpwm.h"
-#include "nmeagps.h"
 
 #define	rx3dot2_6chan 0
 #define	rx3dot2_4chan_gps 1
@@ -34,9 +33,9 @@
 #define rx_GB_1dot2 3
 #define	rx3dot2_5chan_1wire 4
 
-
 PUBLIC char* rxHardwareTypeEnumValues[rxHardwareTypeCount] =
-{ "rx3.2 6 channnel", "rx3.2 4 channel + gps", "rx single cell 1.0", "rx GB 1.2","rx3.2 5 channel + 1wire" };
+{ "rx3.2 6 channnel", "reserved 1", "rx single cell 1.0",
+		"rx GB 1.2", "reserved 2" };
 
 //PUBLIC const size_t rxHardwareTypeCount=sizeof(rxHardwareTypeEnumValues) / sizeof(rxHardwareTypeEnumValues[0];
 
@@ -55,129 +54,127 @@ PUBLIC uint8 rxHardwareType = 0;
 //  nc - not connected
 
 // Set up for 6ch standard servo output
-opChannel standard6channel[20] = {
-	{ servopwm, E_AHI_DIO10_INT},
-	{ servopwm, E_AHI_DIO13_INT},
-	{ servopwm, E_AHI_DIO6_INT},
-	{ servopwm, E_AHI_DIO7_INT},
-	{ servopwm, E_AHI_DIO14_INT},
-	{ servopwm, E_AHI_DIO15_INT},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0 }
-};
-// Set up for 5ch standard servo output + 1 wire bus on uart1
-opChannel standard5channel_1wire[20] = {
-	{ servopwm, E_AHI_DIO6_INT},
-	{ servopwm, E_AHI_DIO7_INT},
-	{ servopwm, E_AHI_DIO10_INT},
-	{ servopwm, E_AHI_DIO15_INT},
-	{ servopwm, E_AHI_DIO14_INT},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0 }
-};
+opChannel standard6channel[20] =
+{
 
+{ servopwm, E_AHI_DIO6_INT },
+{ servopwm, E_AHI_DIO7_INT },
+{ servopwm, E_AHI_DIO10_INT },
+{ servopwm, E_AHI_DIO15_INT },
+{ servopwm, E_AHI_DIO14_INT },
+{ servopwm, E_AHI_DIO20_INT },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 } };
+// Set up for 5ch standard servo output + 1 wire bus on uart1
+opChannel standard5channel_1wire[20] =
+{
+{ servopwm, E_AHI_DIO6_INT },
+{ servopwm, E_AHI_DIO7_INT },
+{ servopwm, E_AHI_DIO10_INT },
+{ servopwm, E_AHI_DIO15_INT },
+{ servopwm, E_AHI_DIO14_INT },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 } };
 
 // Set up for GB rx 1.2 with 8 channels
-opChannel gb1_2_8channel[20] = {
-	{ servopwm, E_AHI_DIO4_INT},
-	{ servopwm, E_AHI_DIO5_INT},
-	{ servopwm, E_AHI_DIO6_INT},
-	{ servopwm, E_AHI_DIO7_INT},
-	{ servopwm, E_AHI_DIO8_INT},
-	{ servopwm, E_AHI_DIO9_INT},
-	{ servopwm, E_AHI_DIO10_INT},
-	{ servopwm, E_AHI_DIO14_INT},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0 }
-};
-
+opChannel gb1_2_8channel[20] =
+{
+{ servopwm, E_AHI_DIO4_INT },
+{ servopwm, E_AHI_DIO5_INT },
+{ servopwm, E_AHI_DIO6_INT },
+{ servopwm, E_AHI_DIO7_INT },
+{ servopwm, E_AHI_DIO8_INT },
+{ servopwm, E_AHI_DIO9_INT },
+{ servopwm, E_AHI_DIO10_INT },
+{ servopwm, E_AHI_DIO14_INT },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 } };
 
 // setup for rx sc1 5 servos and two brushed motors
-opChannel rxsc1_5servo[20] = {
-	{ servopwm, E_AHI_DIO6_INT},
-	{ servopwm, E_AHI_DIO7_INT},
-	{ pwm, E_AHI_DIO10_INT},
-	{ pwm, E_AHI_DIO13_INT},
-	{ servopwm, E_AHI_DIO14_INT},
-	{ servopwm, E_AHI_DIO15_INT},
-	{ servopwm, E_AHI_DIO20_INT},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-};
+opChannel rxsc1_5servo[20] =
+{
+{ servopwm, E_AHI_DIO6_INT },
+{ servopwm, E_AHI_DIO7_INT },
+{ pwm, E_AHI_DIO10_INT },
+{ pwm, E_AHI_DIO13_INT },
+{ servopwm, E_AHI_DIO14_INT },
+{ servopwm, E_AHI_DIO15_INT },
+{ servopwm, E_AHI_DIO20_INT },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 }, };
 
 // setup for 4 servos and gps
-opChannel gps[20] = {
-	{ servopwm, E_AHI_DIO10_INT},
-	{ servopwm, E_AHI_DIO13_INT},
-	{ servopwm, E_AHI_DIO14_INT},
-	{ servopwm, E_AHI_DIO15_INT},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0},
-	{ nc, 0}
-};
+opChannel gps[20] =
+{
+{ servopwm, E_AHI_DIO10_INT },
+{ servopwm, E_AHI_DIO13_INT },
+{ servopwm, E_AHI_DIO14_INT },
+{ servopwm, E_AHI_DIO15_INT },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 },
+{ nc, 0 } };
 
 // The output mapping in use
 PRIVATE opChannel* outputMapping;
-
 
 /****************************************************************************
  *
@@ -200,10 +197,49 @@ void initInputs(rxHardwareOptions* rxHardware)
 	// or selection from flash settings
 	// or make this file a template for people to put their private implementations in
 
-	if(!rxHardware->uart0InUse && rxHardwareType == rx3dot2_4chan_gps)
+	//enable one wire and gps only if no port conflicts
+	switch (rxHardware->desiredOneWirePort)
 	{
-		initNmeaGps(E_AHI_UART_0,E_AHI_UART_RATE_38400);
-		rxHardware->uart0InUse=TRUE;
+	case INPUTNOTCONNECTED:
+		break;
+	case INPUTUART0:
+		if (!rxHardware->uart0InUse)
+		{
+			rxHardware->oneWirePort = E_AHI_UART_0;
+			rxHardware->oneWireEnabled = TRUE;
+			rxHardware->uart0InUse = TRUE;
+		}
+		break;
+	case INPUTUART1:
+		if (!rxHardware->uart1InUse)
+		{
+			rxHardware->oneWirePort = E_AHI_UART_1;
+			rxHardware->oneWireEnabled = TRUE;
+			rxHardware->uart1InUse = TRUE;
+		}
+		break;
+	}
+
+	switch (rxHardware->desiredGpsPort)
+	{
+	case INPUTNOTCONNECTED:
+		break;
+	case INPUTUART0:
+		if (!rxHardware->uart0InUse)
+		{
+			rxHardware->gpsPort = E_AHI_UART_0;
+			rxHardware->gpsEnabled = TRUE;
+			rxHardware->uart0InUse = TRUE;
+		}
+		break;
+	case INPUTUART1:
+		if (!rxHardware->uart1InUse)
+		{
+			rxHardware->gpsPort = E_AHI_UART_1;
+			rxHardware->gpsEnabled = TRUE;
+			rxHardware->uart1InUse = TRUE;
+		}
+		break;
 	}
 }
 
@@ -224,62 +260,52 @@ void initInputs(rxHardwareOptions* rxHardware)
  ****************************************************************************/
 void initOutputs(rxHardwareOptions* rxHardware)
 {
-	int nservos = 0;	// Count of number of configured servos
+	int nservos = 0; // Count of number of configured servos
 
-	rxHardware->ledBit=(1 << 17);
+	rxHardware->ledBit = (1 << 17);
 
-	rxHardware->batVoltageChannel=E_AHI_ADC_SRC_ADC_4;
-	rxHardware->batVoltageMultiplier=1331; //2.4*12.2/2.2
-	rxHardware->batVoltageOffset=0;
+	rxHardware->batVoltageChannel = E_AHI_ADC_SRC_ADC_4;
+	rxHardware->batVoltageMultiplier = 1331; //2.4*12.2/2.2
+	rxHardware->batVoltageOffset = 0;
 
-	switch(rxHardwareType)
+	switch (rxHardwareType)
 	{
-	case rx3dot2_6chan :
-		outputMapping=standard6channel;
-		rxHardware->ledBit=(1 << 5);
+	case rx3dot2_6chan:
+		outputMapping = standard6channel;
+		rxHardware->ledBit = (1 << 5);
 		break;
-	case rx3dot2_4chan_gps :
-		outputMapping=gps;
-		rxHardware->ledBit=(1 << 5);
-		break;
-	case rx3dot2_5chan_1wire :
-		outputMapping=standard5channel_1wire;
-		rxHardware->ledBit=(1 << 5);
-		rxHardware->oneWirePort=E_AHI_UART_1;
-		rxHardware->oneWireEnabled=TRUE;
-		rxHardware->uart1InUse=TRUE;
-		break;
-	case rxsc1 :
+	case rxsc1:
 		outputMapping = rxsc1_5servo;
 		//use internal bat monitor
-		rxHardware->batVoltageChannel=E_AHI_ADC_SRC_VOLT;
-		rxHardware->batVoltageMultiplier=360;
-		rxHardware->batVoltageOffset=60;
+		rxHardware->batVoltageChannel = E_AHI_ADC_SRC_VOLT;
+		rxHardware->batVoltageMultiplier = 360;
+		rxHardware->batVoltageOffset = 60;
 
 		break;
-	case rx_GB_1dot2 :
+	case rx_GB_1dot2:
 		outputMapping = gb1_2_8channel;
 		break;
 	}
-
 
 	int i;
 	for (i = 0; i < 20; i++)
 	{
 		//prevent output on uart0 pins if used
-		if(rxHardware->uart0InUse)
+		if (rxHardware->uart0InUse)
 		{
-			if(outputMapping[i].pin==E_AHI_DIO6_INT || outputMapping[i].pin==E_AHI_DIO7_INT)
+			if (outputMapping[i].pin == E_AHI_DIO6_INT || outputMapping[i].pin
+					== E_AHI_DIO7_INT)
 			{
-				outputMapping[i].type=nc;
+				outputMapping[i].type = nc;
 			}
 		}
 		//prevent output on uart1 pins if used
-		if(rxHardware->uart1InUse)
+		if (rxHardware->uart1InUse)
 		{
-			if(outputMapping[i].pin==E_AHI_DIO19_INT || outputMapping[i].pin==E_AHI_DIO20_INT)
+			if (outputMapping[i].pin == E_AHI_DIO19_INT || outputMapping[i].pin
+					== E_AHI_DIO20_INT)
 			{
-				outputMapping[i].type=nc;
+				outputMapping[i].type = nc;
 			}
 		}
 		// For each of the configured output types
@@ -340,7 +366,7 @@ void updateOutputs(uint16* channelData)
 
 	// Set outputs
 
-	int servo = 0;	// Index into servo array
+	int servo = 0; // Index into servo array
 	int i;
 	for (i = 0; i < 20; i++)
 	{
@@ -363,7 +389,7 @@ void updateOutputs(uint16* channelData)
 			// yep but requires careful checking of timing in servopwm.c
 			if (u32Demand > 2000 * 16)
 				u32Demand = 2000 * 16;
-			if(u32Demand < 1000 * 16)
+			if (u32Demand < 1000 * 16)
 				u32Demand = 1000 * 16;
 
 			// Set the demanded pulse width
@@ -378,7 +404,7 @@ void updateOutputs(uint16* channelData)
 		}
 		case digital:
 		{
-			if(channelData[i] > 3000)
+			if (channelData[i] > 3000)
 				vAHI_DioSetOutput(outputMapping[i].pin, 0);
 			else
 				vAHI_DioSetOutput(0, outputMapping[i].pin);

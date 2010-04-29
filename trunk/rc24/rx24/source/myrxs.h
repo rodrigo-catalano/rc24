@@ -23,6 +23,11 @@
 /***        Exported type definitions				  					  ***/
 /****************************************************************************/
 
+#define INPUTNOTCONNECTED 0
+#define INPUTUART0 1
+#define INPUTUART1 2
+
+
 // TODO - Do these need to be public?  Only used in myrxs.c
 // The type of outputs supported
 typedef enum
@@ -48,6 +53,10 @@ typedef struct
 	bool i2cInUse;
 	bool oneWireEnabled;
 	uint8 oneWirePort;
+	uint8 desiredOneWirePort;
+	bool gpsEnabled;
+	uint8 gpsPort;
+	uint8 desiredGpsPort;
 }rxHardwareOptions;
 
 /****************************************************************************/
