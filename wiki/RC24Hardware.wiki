@@ -1,0 +1,26 @@
+#labels Hardware
+#This page details some of the hardware built for RC24.
+
+= Introduction =
+
+Details of some of the hardware items that have been built for rc24.
+
+= Details =
+
+A number of hardware items have been built for the rc24 system.
+
+ * Transmitter.
+ * 6 channel receiver.
+ * 8 channel receiver.
+
+== Transmitter ==
+
+TBD
+
+== 6 channel receiver ==
+
+TBD
+
+== 8 channel receiver ==
+
+TBD
