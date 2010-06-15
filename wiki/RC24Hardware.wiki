@@ -1,6 +1,4 @@
 #labels Hardware
-#This page details some of the hardware built for RC24.
-
 = Introduction =
 
 Details of some of the hardware items that have been built for rc24.
