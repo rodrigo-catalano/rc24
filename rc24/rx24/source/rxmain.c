@@ -1159,9 +1159,12 @@ void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 	{
 		// Wrap routed packet with a 255 cmd to allow coexistance with existing comms
 		// TODO - Fix the command magic number
-		pcComsSendPacket(msg, 0, len, 255);
-		uart0RoutedBytesTxd+=len;
-		uart0RoutedPacketsTxd++;
+		if(!radioDebug)
+		{
+			pcComsSendPacket(msg, 0, len, 255);
+			uart0RoutedBytesTxd+=len;
+			uart0RoutedPacketsTxd++;
+		}
 		break;
 	}
 	case CONONEWIRE:
