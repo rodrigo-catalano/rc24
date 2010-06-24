@@ -62,6 +62,7 @@ typedef struct
     mixEx mixes[MAXCHANNELS*2];
     int rateMode;
     CUSTOM_MIX_FN mixFunction;
+    uint8 nFullSpeedChannels;
 
 }modelEx;
 

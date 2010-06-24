@@ -81,6 +81,7 @@ void setupDefaultModel(modelEx* mod)
     strcpy(mod->name,"Default Model");
     mod->nActiveChannels=20;
     mod->rateMode=1;
+    mod->nFullSpeedChannels=8;
     for(i=0;i<MAXCHANNELS;i++)
     {
         mod->mixes[i].inChannel=i;
@@ -210,6 +211,7 @@ uint16 storeModel(store* s,modelEx* mod)
     writeInt32(&section,mod->rxMACl);
     writeString(&section,&(mod->name[0]));
     writeUint8(&section,mod->nActiveChannels);
+
     for(i=0;i<MAXCHANNELS;i++)writeInt16(&section,mod->highEndStop[i]);
     for(i=0;i<MAXCHANNELS;i++)writeInt16(&section,mod->lowEndStop[i]);
     for(i=0;i<MAXCHANNELS;i++)writeInt16(&section,mod->trim[i]);
@@ -261,6 +263,10 @@ void readModel(store* s,modelEx* mod)
     readString(s,mod->name,sizeof(mod->name));
 
     mod->nActiveChannels=readUint8(s);
+
+    //temp default value for full speed channels
+    mod->nFullSpeedChannels=8;
+
     for(i=0;i<MAXCHANNELS;i++)mod->highEndStop[i]=readInt16(s);
     for(i=0;i<MAXCHANNELS;i++)mod->lowEndStop[i]=readInt16(s);
     for(i=0;i<MAXCHANNELS;i++)mod->trim[i]=readInt16(s);
