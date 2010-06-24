@@ -159,6 +159,7 @@ PRIVATE uint8 rxLEDFlashLimit = LED_FLASH_MED;	// Count limit to toggle LED
 PRIVATE bool rxLEDState = FALSE;	// State of LED
 
 PRIVATE bool useHighPowerModule = FALSE;
+PRIVATE bool frameReceived = FALSE;
 
 // TODO - make local to using function
 PRIVATE nmeaGpsData gpsData;	// Data from GPS device
@@ -418,6 +419,9 @@ void frameStartEvent(void* buff)
 {
 	// Called every frame, currently 20ms
 	frameCounter++;
+
+	//used instead of sequence number to prevent handling the same frame twice
+	frameReceived=FALSE;
 
 	// Binding check
 	// Only do automatic bind request after 10secs incase this
@@ -748,15 +752,17 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 	// TODO - macptr not used as code is commented out
 	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
 
+	uint8 realTimeDataLen=psFrame->au8Sdu[0];
+	uint8 lowPriorityDataLen=psFrame->u8SduLength-1-realTimeDataLen;
 	// If not associated ??
 	// TODO - should this be merged with similar code below [1]
 	if (sEndDeviceData.eState != E_STATE_ASSOCIATED)
 	{
 		// Check for bind acceptance
 		// if routed packet, handle it
-		if(psFrame->u8SduLength>11)
+		if(lowPriorityDataLen>0)
 		{
-			handleLowPriorityData(&psFrame->au8Sdu[11], psFrame->u8SduLength - 11);
+			handleLowPriorityData(&psFrame->au8Sdu[realTimeDataLen+1], lowPriorityDataLen);
 			return;
 		}
 	}
@@ -783,9 +789,10 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 	}
 
 	//the same packet can be received many times if the ack was not received by the sender
-	// If the received packet seq. no. is different from the last one we have a new packet
-	if (psFrame->au8Sdu[0] != sEndDeviceData.u8RxPacketSeqNb)
+
+	if(!frameReceived)
 	{
+		frameReceived=TRUE;
 		// Record the link quality
 		txLinkQuality = psFrame->u8LinkQuality;
 
@@ -799,7 +806,10 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		// retrieve the tx time, calculate the rx time ??
 		// TODO - explain rx time calc
 		int txTime = (psFrame->au8Sdu[1] + (psFrame->au8Sdu[2] << 8)) * 160;
-		int rxTime = (txTime + 2000* 16 ) % (31* 20000* 16 ) ;
+		//allow for latencies along the way and calculate the time we think the tx has now.
+		//allow for variations in packet length @ 250kbps
+		//32us per byte is 512 clocks per byte
+		int rxTime = (txTime + 2000* 16 +(psFrame->u8SduLength-8)*512  ) % (31* 20000* 16 ) ;
 
 		// TODO - Explain this
 		calcSyncError(rxTime);
@@ -811,8 +821,13 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		sEndDeviceData.u8RxPacketSeqNb = psFrame->au8Sdu[0];
 
 		// Process the data packet
-		vProcessReceivedDataPacket(&psFrame->au8Sdu[3], (psFrame->u8SduLength)
-				- 3);
+		vProcessReceivedDataPacket(&psFrame->au8Sdu[3], realTimeDataLen-2);
+
+		// If there is more data, process it
+		if(lowPriorityDataLen>0)
+		{
+			handleLowPriorityData(&psFrame->au8Sdu[realTimeDataLen+1], lowPriorityDataLen);
+		}
 
 		// Send some data back
 		// should check there is time to do this and limit retries
@@ -958,26 +973,37 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 	{
 		// Decode servo data from packet
 		// TODO - define a structure for this using bitfields
+
 		rxDemands[0] = pu8Data[0] + ((pu8Data[1] & 0x00f0) << 4);
 		rxDemands[1] = ((pu8Data[1] & 0x000f)) + (pu8Data[2] << 4);
 		rxDemands[2] = pu8Data[3] + ((pu8Data[4] & 0x00f0) << 4);
 		rxDemands[3] = ((pu8Data[4] & 0x000f)) + (pu8Data[5] << 4);
 
+		if(u8Len>=11)
+		{
+			rxDemands[4] = pu8Data[6] + ((pu8Data[7] & 0x00f0) << 4);
+			rxDemands[5] = ((pu8Data[7] & 0x000f)) + (pu8Data[8] << 4);
+		}
+		if(u8Len>=14)
+		{
+			rxDemands[6] = pu8Data[9] + ((pu8Data[10] & 0x00f0) << 4);
+			rxDemands[7] = ((pu8Data[10] & 0x000f)) + (pu8Data[11] << 4);
+		}
+		if(u8Len>=17)
+		{
+			rxDemands[8] = pu8Data[12] + ((pu8Data[13] & 0x00f0) << 4);
+			rxDemands[9] = ((pu8Data[13] & 0x000f)) + (pu8Data[14] << 4);
+		}
+
 		// Decode channel and value from packet
-		uint8 channel = (pu8Data[6] >> 4) + 4;
-		uint16 value = ((pu8Data[6] & 0x000f)) + (pu8Data[7] << 4);
+		uint8 channel = (pu8Data[u8Len-2] >> 4) + 4;
+		uint16 value = ((pu8Data[u8Len-2] & 0x000f)) + (pu8Data[u8Len-1] << 4);
 
 		// Set the extra channel
 		rxDemands[channel] = value;
 
 		// Set the output values
 		updateOutputs(rxDemands);
-
-		// If there is more data, process it
-		if (u8Len > 8)
-		{
-			handleLowPriorityData(pu8Data + 8, u8Len - 8);
-		}
 	}
 }
 
@@ -1407,7 +1433,6 @@ void saveGeneralSettings(store* s)
 
 void loadRadioSettings(store* s)
 {
-	uint8 gg;
 
 	store section;
 	int tag;

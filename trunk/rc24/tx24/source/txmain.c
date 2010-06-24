@@ -214,8 +214,7 @@ uint16 batDac = 1023;
 
 int backlightTimer = 50* 60* 1 ;
 
-int
-txbat = 0;
+int txbat = 0;
 int rxbat = 0;
 int txretries = 0;
 int rxpackets = 0;
@@ -306,7 +305,7 @@ PUBLIC void AppColdStart(void)
 	resetType rt=getResetReason();
 	if(rt!=NOEXCEPTION)
 	{
-		pcComsPrintf("EXCEPTION %d \r\n",rt);
+		pcComsPrintf("TX EXCEPTION %d \r\n",rt);
 	}
 
 
@@ -463,61 +462,7 @@ PUBLIC void AppColdStart(void)
 	//   txSendRoutedMessage(msg,2, CONRX);
 
 
-	char code[]="steer = in1 * 10 + trim1";
-/*
-#alula
-	if s1
-	{
-		elvrate=30
-		ailrate=60
-	}
-	else
-	{
-		elvrate=50
-		ailrate=100
-	}
 
-	ail=in1*ailrate
-	ail=ail/100
-	ail=ail+trim1
-	elev=in2*elvrate
-	elev=in2/100
-	elev=elev+trim2
-	op1=elev-ail
-	op2=elv+ail
-
-	vs
-	//with fixed point
-
-	ail=in1*ailrate
-	ail=ail+trim1
-	elev=in2*elvrate
-	elev=elev+trim2
-	op1=elev-ail
-	op2=elv+ail
-
-
-	vs
-	//with full expression evaluator
-	 *
-	ail=in1*ailrate+trim1
-	elev=in2*elevrate+trim2
-	op1=elev-ail
-	op2=elv+ail
-
-	op1 op2 = vtail ail elev
-
-	std
-
-	op1 = 100 * in1
-
-	op1 = stdmix in1 rate trim top bottom
-
-
-
-
-
-*/
 
 	while (1)
 	{
@@ -1287,7 +1232,8 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr)
 
 	pu8Payload = sMcpsReqRsp.uParam.sReqData.sFrame.au8Sdu;
 
-	pu8Payload[0] = sCoordinatorData.u8TxPacketSeqNb;
+//	pu8Payload[0] = sCoordinatorData.u8TxPacketSeqNb;
+	pu8Payload[0] = u8Len;
 
 	for (i = 1; i < (u8Len + 1); i++)
 	{
@@ -1476,16 +1422,33 @@ PRIVATE void vCreateAndSendFrame(void)
 	//    vPrintf("%d %d  \r",txDemands[0],txDemands[1]);
 
 	// Pack into packet
-	au8Packet[2] = txDemands[0] & 0x00ff;
-	au8Packet[3] = ((txDemands[0] & 0x0f00) >> 4) + (txDemands[1] & 0x000f);
-	au8Packet[4] = (txDemands[1] & 0x0ff0) >> 4;
-	au8Packet[5] = txDemands[2] & 0x00ff;
-	au8Packet[6] = ((txDemands[2] & 0x0f00) >> 4) + (txDemands[3] & 0x000f);
-	au8Packet[7] = (txDemands[3] & 0x0ff0) >> 4;
 
-	au8Packet[8] = ((currentAuxChannel - 4) << 4)
+	uint32 packetIdx=2;
+
+	au8Packet[packetIdx++] = txDemands[0] & 0x00ff;
+	au8Packet[packetIdx++] = ((txDemands[0] & 0x0f00) >> 4) + (txDemands[1] & 0x000f);
+	au8Packet[packetIdx++] = (txDemands[1] & 0x0ff0) >> 4;
+
+	au8Packet[packetIdx++] = txDemands[2] & 0x00ff;
+	au8Packet[packetIdx++] = ((txDemands[2] & 0x0f00) >> 4) + (txDemands[3] & 0x000f);
+	au8Packet[packetIdx++] = (txDemands[3] & 0x0ff0) >> 4;
+
+	if(liveModel.nFullSpeedChannels>4)
+	{
+		au8Packet[packetIdx++] = txDemands[4] & 0x00ff;
+		au8Packet[packetIdx++] = ((txDemands[4] & 0x0f00) >> 4) + (txDemands[5] & 0x000f);
+		au8Packet[packetIdx++] = (txDemands[5] & 0x0ff0) >> 4;
+	}
+	if(liveModel.nFullSpeedChannels>6)
+	{
+		au8Packet[packetIdx++] = txDemands[6] & 0x00ff;
+		au8Packet[packetIdx++] = ((txDemands[6] & 0x0f00) >> 4) + (txDemands[7] & 0x000f);
+		au8Packet[packetIdx++] = (txDemands[7] & 0x0ff0) >> 4;
+	}
+
+	au8Packet[packetIdx++] = ((currentAuxChannel - 4) << 4)
 			+ (txDemands[currentAuxChannel] & 0x000f);
-	au8Packet[9] = (txDemands[currentAuxChannel] & 0x0ff0) >> 4;
+	au8Packet[packetIdx++] = (txDemands[currentAuxChannel] & 0x0ff0) >> 4;
 
 	// Set packet time in 0.01ms units - just fits in 16 bits
 	int t = (u32AHI_TickTimerRead() + sCoordinatorData.u8ChannelSeqNo
@@ -1495,7 +1458,7 @@ PRIVATE void vCreateAndSendFrame(void)
 
 	PacketDone = 0;
 
-	vTransmitDataPacket(au8Packet, PAYLOAD_SIZE, 1);
+	vTransmitDataPacket(au8Packet, packetIdx, 1);
 }
 
 void toggleBackLight(clickEventArgs* clickargs)
