@@ -63,3 +63,14 @@ Further reprogramming does not require the module to be put in 'bootloader mode'
 With a programmed tx module connected you should see something like this
 
 http://www.ihopper.org/images/serialtx.gif
+
+= Configure modules =
+
+Once the modules are programmed the pc config program should be used to configue the software for the particular hardware.  The key settings are 'Hardware Type' and 'High power module' for the rx and 'Default input'  and 'High power module' for the tx.  Once set, click the 'save settings' button then the 'reset node' button.
+
+= Binding =
+
+Binding is a little messy at the moment!
+The rx accepts bind requests between 10 and 100 seconds after powerup( assuming it doesn't get a signal from an already bound tx).  If the rx has an led it should flash slowly for the first 10s then speed up when in bind mode.  Once bound it appears mainly on but flickers.
+Binding on the tx is started from the real or virtual touch screen.  Click the up arrow twice and a page with the word 'bind' should appear.  Click the bind button. 
+The rx autmatically saves the binding, for the tx click the 'save settings button'
