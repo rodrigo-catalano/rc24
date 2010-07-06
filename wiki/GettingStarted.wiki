@@ -68,6 +68,10 @@ http://www.ihopper.org/images/serialtx.gif
 
 Once the modules are programmed the pc config program should be used to configue the software for the particular hardware.  The key settings are 'Hardware Type' and 'High power module' for the rx and 'Default input'  and 'High power module' for the tx.  Once set, click the 'save settings' button then the 'reset node' button.
 
+By default serial rx0 and tx0 are used for programming and debugging. These are shared with servo outputs 3&4 on the GB 8ch rx and 1&2 0n the 6ch rx.  To enable these for servo output set 'radioDebug' to true on the rx.
+
+On the tx, to use analog inputs from the adcs, set the 'DefaultInput' to custom.
+
 = Binding =
 
 Binding is a little messy at the moment!
