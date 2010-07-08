@@ -1008,22 +1008,22 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 			memcpy(&f, &pu8Data[2], 4);
 			rxData[pu8Data[1]] = f;
 
-#ifdef JN5148
+//#ifdef JN5148
 			//todo sort out maths lib on 5148
-#else
+//#else
 
-			if(pu8Data[0]==rxheightidx && initialHeight==-9999)initialHeight=f;
-			if(pu8Data[0]==rxlatidx && initialLat==-9999)
+			if(pu8Data[1]==rxheightidx && initialHeight==-9999)initialHeight=f;
+			if(pu8Data[1]==rxlatidx && initialLat==-9999)
 			{
 				initialLat=((double)f)/100000;
 			}
-			if(pu8Data[0]==rxlongidx && initialLong==-9999)
+			if(pu8Data[1]==rxlongidx && initialLong==-9999)
 			{
 				initialLong=((double)f)/100000;
 
 				longitudeScale=cos(initialLong*3.1415927/180)*60;
 			}
-			if(pu8Data[0]==rxlongidx && initialLong!=-9999)
+			if(pu8Data[1]==rxlongidx && initialLong!=-9999)
 			{
 				double dlat=((double)rxData[rxlatidx])/100000-initialLat;
 				double dlong=((double)rxData[rxlongidx])/100000-initialLong;
@@ -1037,7 +1037,7 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 
 			}
 
-#endif
+//#endif
 		}
 	}
 	if (u8Len - PriorityDataLen > 1)

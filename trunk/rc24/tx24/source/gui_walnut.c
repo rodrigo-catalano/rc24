@@ -79,6 +79,7 @@ extern int channelRetryCounter[16];
 
 extern int rxData[256];
 extern uint32 radioRange;
+extern int range;
 
 extern int totalLostFrames;
 extern int lowestRxFrameRate;
@@ -258,7 +259,7 @@ numberControl rxheightVal =
 labelControl rxrangeLabel =
 { "range", 0, 48, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl rxrangeVal =
-{ &radioRange, 36, 48, 64, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &range, 36, 48, 64, 8, 8, 0, TRUE, 0, 0, "i" };
 
 numberControl rxWorst =
 { &lowestRxFrameRate, 0, 56, 24, 8, 8, 0, TRUE, 0, 0, "i" };
@@ -352,10 +353,8 @@ labelControl p2modelLabel =
 { liveModel.name, 0, 32, 64, 8, 8, 0, TRUE, FALSE, NULL };
 labelControl p2modelDown =
 { "Down", 0, 48, 64, 8, 8, 0, TRUE, FALSE, setModelDown };
-imageControl p2light =
-{ homeicon, 64, 0, 24, 24, TRUE, FALSE, toggleBackLight };
 imageControl p2Off =
-{ homeicon, 64, 24, 24, 24, TRUE, FALSE, sleepClick };
+{ saveicon, 64, 24, 24, 24, TRUE, FALSE, sleepClick };
 
 visualControl page2[] =
 {
@@ -363,7 +362,6 @@ visualControl page2[] =
 { &p2modelUp, dctLabel },
 { &p2modelLabel, dctLabel },
 { &p2modelDown, dctLabel },
-{ &p2light, dctImage },
 { &p2Off, dctImage },
 { &p1Up, dctImage },
 { &p1Down, dctImage }
@@ -1164,7 +1162,8 @@ void exportGuiToXAML()
 						image->w, image->h, image->x, image->y);
 
 				break;
-
+			default:
+				break;
 			}
 			cycleDelay(300* 1000* 16 ) ;
 

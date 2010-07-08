@@ -162,7 +162,7 @@ APPDEPS = $(APPOBJS:.o=.d)
 # symbols are resolved correctly (i.e. ordering is significant for GCC)
 
 LDLIBS := $(addsuffix _$(JENNIC_CHIP_FAMILY),$(APPLIBS)) $(LDLIBS)
-
+LDLIBS := m $(LDLIBS)
 #########################################################################
 # Dependency rules
 
