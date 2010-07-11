@@ -74,9 +74,9 @@ int parseFloat(char buf[],float* val)
     }
     while(c!=','&&c!=0)
     {
-        c=buf[i++];
         ret=ret+(c-'0')/div;
         div*=10;
+        c=buf[i++];
     }
     if(c==',')i++;
     *val=ret*neg;
@@ -107,12 +107,12 @@ int parseFPInt(char buf[],int* val,uint8 places)
     }
     while(c!=','&&c!=0)
     {
-        c=buf[++i];
         if(places>0)
         {
             ret=ret*10+(c-'0');
             places--;
         }
+        c=buf[++i];
     }
     while(places>0)
     {
