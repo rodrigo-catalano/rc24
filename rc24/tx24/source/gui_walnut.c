@@ -255,7 +255,7 @@ numberControl rxspeedVal =
 labelControl rxheightLabel =
 { "height", 64, 32, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl rxheightVal =
-{ &rxData[rxheightidx], 96, 32, 30, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &rxData[rxheightidx], 96, 32, 30, 8, 8, 0, TRUE, 0, 1, "i" };
 labelControl rxrangeLabel =
 { "range", 0, 48, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl rxrangeVal =
