@@ -49,9 +49,11 @@ visualControl page1[]={{&txbatLabel,dctLabel},
 
 #include <string.h>
 #include <jendefs.h>
+#include <stdlib.h>
 #include <AppHardwareApi.h>
 #include <LcdFont.h>
 #include "display.h"
+
 
 #include "ps2.h"
 PRIVATE void itoa(int num,char op[],uint8 u8Base)
@@ -81,7 +83,7 @@ PRIVATE void itoa(int num,char op[],uint8 u8Base)
         *(op++)=*p;
         p++;
     }
-    *op++=' ';
+    //*op++=' ';
     *op='\0';
 
     return;
@@ -117,8 +119,30 @@ void renderNumber(numberControl* label,bool forceUpdate,uint8* buf,int scanlen)
     }
     if(forceUpdate || label->lastValue!=val)
     {
-        itoa(val,b,10);
+        if(label->dplaces>0)
+        {
+        	int divisor=1;
+        	int i;
+        	for(i=0;i<label->dplaces;i++)divisor*=10;
 
+        	itoa(val/divisor,b,10);
+        	int end=strlen(b);
+        	*(b+end++)='`';
+        	int zeros=divisor/10;
+        	int frac=abs(val%divisor);
+        	while(zeros>frac)
+        	{
+        		*(b+end++)='0';
+        		zeros/=10;
+
+        	}
+        	*(b+end)='\0';
+        	if(frac>0)itoa(frac,b+end,10);
+        }
+        else
+        {
+        	itoa(val,b,10);
+        }
         vWriteText(buf,scanlen,b, label->x, label->y, label->mask, label->w);
         label->lastValue = val;
     }
