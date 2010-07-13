@@ -222,40 +222,41 @@ uint8 saveicon[] = {0,252,2,2,242,18,242,18,18,18,18,18,18,18,18,18,18,18,242,18
 
 visualControl* focusedControl = NULL;
 
-labelControl headerLabel =
-{ "tx24 2.11", 0, 0, 48, 8, 8, 0, TRUE, FALSE, NULL };
 labelControl modelLabel =
-{ liveModel.name, 48, 0, 64, 8, 8, 0, TRUE, FALSE, NULL };
+{ liveModel.name, 0, 24, 64, 8, 8, 0, TRUE, FALSE, NULL };
+
+labelControl headerLabel =
+{ "    Bat Pkt  Rty  Sig", 0, 0, 128, 8, 8, 0, TRUE, FALSE, NULL };
 
 labelControl txbatLabel =
-{ "tx bat", 0, 8, 30, 8, 8, 0, TRUE, FALSE, NULL };
+{ "tx", 0, 8, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl txbatVal =
-{ &txbat, 36, 8, 20, 8, 8, 0, TRUE, 0, 2, "i" };
+{ &txbat, 14, 8, 20, 8, 8, 0, TRUE, 0, 2, "i" };
 
 labelControl rxbatLabel =
-{ "rx bat", 0, 16, 30, 8, 8, 0, TRUE, FALSE, NULL };
+{ "rx", 0, 16, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl rxbatVal =
-{ &rxbat, 36, 16, 20, 8, 8, 0, TRUE, 0, 2, "i" };
+{ &rxbat, 14, 16, 20, 8, 8, 0, TRUE, 0, 2, "i" };
 
 numberControl acksVal =
-{ &txacks, 60, 8, 30, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &txacks, 37, 8, 30, 8, 8, 0, TRUE, 0, 0, "i" };
 numberControl retryVal =
-{ &txretries, 80, 8, 25, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &txretries, 64, 8, 18, 8, 8, 0, TRUE, 0, 0, "i" };
 numberControl rxerrorVal =
-{ &rxpackets, 60, 16, 30, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &rxpackets, 37, 16, 30, 8, 8, 0, TRUE, 0, 0, "i" };
 numberControl txLinkQ =
-{ &txLinkQuality, 105, 8, 23, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &txLinkQuality, 87, 8, 18, 8, 8, 0, TRUE, 0, 0, "i" };
 numberControl rxLinkQ =
-{ &rxLinkQuality, 105, 16, 23, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &rxLinkQuality, 87, 16, 18, 8, 8, 0, TRUE, 0, 0, "i" };
 
 labelControl rxspeedLabel =
 { "speed", 0, 32, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl rxspeedVal =
-{ &rxData[rxspeedidx], 36, 32, 24, 8, 8, 0, TRUE, 0, 3, "i" };
+{ &rxData[rxspeedidx], 36, 32, 30, 8, 8, 0, TRUE, 0, 3, "i" };
 labelControl rxheightLabel =
-{ "height", 64, 32, 30, 8, 8, 0, TRUE, FALSE, NULL };
+{ "height", 0, 40, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl rxheightVal =
-{ &rxData[rxheightidx], 96, 32, 30, 8, 8, 0, TRUE, 0, 1, "i" };
+{ &rxData[rxheightidx], 36, 40, 30, 8, 8, 0, TRUE, 0, 1, "i" };
 labelControl rxrangeLabel =
 { "range", 0, 48, 30, 8, 8, 0, TRUE, FALSE, NULL };
 numberControl rxrangeVal =
@@ -264,40 +265,40 @@ numberControl rxrangeVal =
 numberControl rxWorst =
 { &lowestRxFrameRate, 0, 56, 24, 8, 8, 0, TRUE, 0, 0, "i" };
 numberControl flightTimerVal =
-{ &flightTimer, 64, 56, 64, 8, 8, 0, TRUE, 0, 0, "i" };
+{ &flightTimer, 64, 56, 40, 8, 8, 0, TRUE, 0, 0, "i" };
 
 barControl bar1 =
-{ &channelAcks[0], 0, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[0], 64, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar2 =
-{ &channelAcks[1], 5, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[1], 65, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar3 =
-{ &channelAcks[2], 10, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[2], 66, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar4 =
-{ &channelAcks[3], 15, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[3], 67, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar5 =
-{ &channelAcks[4], 20, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[4], 68, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar6 =
-{ &channelAcks[5], 25, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[5], 69, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar7 =
-{ &channelAcks[6], 30, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[6], 70, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar8 =
-{ &channelAcks[7], 35, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[7], 71, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar9 =
-{ &channelAcks[8], 40, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[8], 72, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar10 =
-{ &channelAcks[9], 45, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[9], 73, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar11 =
-{ &channelAcks[10], 50, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[10], 74, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar12 =
-{ &channelAcks[11], 55, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[11], 75, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar13 =
-{ &channelAcks[12], 60, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[12], 76, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar14 =
-{ &channelAcks[13], 65, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[13], 77, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar15 =
-{ &channelAcks[14], 70, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[14], 78, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 barControl bar16 =
-{ &channelAcks[15], 75, 24, 4, 8, 8, 0, TRUE, 0, 0 };
+{ &channelAcks[15], 79, 16, 1, 8, 8, 0, TRUE, 0, 0 };
 
 imageControl p1Down =
 { imgDownButton, 104, 40, 24, 24, TRUE, FALSE, pageDown };
@@ -306,8 +307,8 @@ imageControl p1Up =
 
 visualControl page1[] =
 {
-{ &headerLabel, dctLabel },
 { &modelLabel, dctLabel },
+{ &headerLabel, dctLabel },
 { &txbatLabel, dctLabel },
 { &txbatVal, dctNumber },
 { &rxbatLabel, dctLabel },
@@ -387,6 +388,12 @@ numberControl ch1 =
 numberControl ch2 =
 { &txInputs[1], 64, 0, 60, 8, 8, 0, TRUE, 0, 0, "i" };
 
+numberControl rxlatVal =
+{ &rxData[rxlatidx], 0, 48, 60, 8, 8, 0, TRUE, 0, 5, "i" };
+numberControl rxlongVal =
+{ &rxData[rxlongidx], 0, 56, 60, 8, 8, 0, TRUE, 0, 5, "i" };
+
+
 visualControl tsTest[] =
 {
 { &tsx, dctNumber },
@@ -396,7 +403,10 @@ visualControl tsTest[] =
 { &p1Down, dctImage },
 { &ch1, dctNumber },
 { &ch2, dctNumber },
-{ &ncdbc1, dctNumber } };
+{ &ncdbc1, dctNumber },
+{ &rxlatVal, dctNumber },
+{ &rxlongVal, dctNumber }
+};
 
 //primary trim page
 

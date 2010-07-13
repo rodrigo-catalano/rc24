@@ -126,7 +126,7 @@ int parseFPInt(char buf[],int* val,uint8 places)
 }
 int dddmm_mmmTodddddd_ddddd(int a)
 {
-    int minutes=a%10000;
+    int minutes=a%100000;
     int deg=a-minutes;
     return deg+minutes*10/6;
 

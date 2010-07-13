@@ -1008,36 +1008,30 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 			memcpy(&f, &pu8Data[2], 4);
 			rxData[pu8Data[1]] = f;
 
-//#ifdef JN5148
-			//todo sort out maths lib on 5148
-//#else
-
 			if(pu8Data[1]==rxheightidx && initialHeight==-9999)initialHeight=f;
 			if(pu8Data[1]==rxlatidx && initialLat==-9999)
 			{
 				initialLat=((double)f)/100000;
+				longitudeScale=cos(initialLat*3.1415927/180)*60;
 			}
 			if(pu8Data[1]==rxlongidx && initialLong==-9999)
 			{
 				initialLong=((double)f)/100000;
-
-				longitudeScale=cos(initialLong*3.1415927/180)*60;
 			}
 			if(pu8Data[1]==rxlongidx && initialLong!=-9999)
 			{
 				double dlat=((double)rxData[rxlatidx])/100000-initialLat;
 				double dlong=((double)rxData[rxlongidx])/100000-initialLong;
-
-				double drange=sqrt(dlat*dlat*60 + dlong*dlong*longitudeScale);
+				dlat*=60;
+				dlong*=longitudeScale;
+				double drange=sqrt(dlat*dlat + dlong*dlong);
 				drange*=1852;//convert to meters
 				range=(int)drange;
 				//      flat earth stuff
 				//      nn = cos(long)*60 calc once
-				//      sqrt(((lat1-lat2)*60)^2 + (long1-long2)*nn)^2)
+				//      sqrt(((lat1-lat2)*60)^2 + ((long1-long2)*nn)^2)
 
 			}
-
-//#endif
 		}
 	}
 	if (u8Len - PriorityDataLen > 1)
