@@ -833,7 +833,7 @@ void pollTouchScreen()
 		{
 			tsPressedTimer = 0;
 			//clear focus
-			focusedControl = NULL;
+			//focusedControl = NULL;
 		}
 		tsX = touchScreen.x;
 		tsY = touchScreen.y;
@@ -927,6 +927,7 @@ void rateClick(clickEventArgs* clickargs)
 void homeClick(clickEventArgs* clickargs)
 {
 	currentPage = 0;
+	focusedControl = NULL;
 }
 
 void bindMixEditor()
@@ -987,6 +988,7 @@ void pageUp(clickEventArgs* clickargs)
 		currentPage = 0;
 	else
 		currentPage++;
+	focusedControl = NULL;
 }
 void pageDown(clickEventArgs* clickargs)
 {
@@ -994,6 +996,7 @@ void pageDown(clickEventArgs* clickargs)
 		currentPage = sizeof(pages) / sizeof(visualPage) - 1;
 	else
 		currentPage--;
+	focusedControl = NULL;
 }
 void virtualKeyCapsClick(clickEventArgs* clickargs)
 {
@@ -1048,7 +1051,8 @@ void virtualKeyClick(clickEventArgs* clickargs)
 void displayClick(uint8 x, uint8 y)
 {
 	//turn on backlight for a while
-	backlightTimer = 50* 30 ;setBacklight(255);
+	backlightTimer = 50* 30 ;
+	setBacklight(255);
 	clickEventArgs clickargs;
 	int c;
 	c=findControl( x, y,&pages[currentPage]);
@@ -1097,7 +1101,7 @@ void displayDrag(int dx, int dy)
 			{
 				*((uint8*) (nc->num)) += (uint8) dx;
 			}
-			if (nc->format[0] == 'h')//uint8 binding
+			if (nc->format[0] == 'h')//uint16 binding
 			{
 				*((int16*) (nc->num)) += (int16) dx;
 			}

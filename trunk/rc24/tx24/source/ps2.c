@@ -32,7 +32,7 @@ uint8 ps2cmd(uint8 cmd);
 
 uint8 ps2cmd(uint8 cmd)
 {
- //   cycleDelay(20*16);
+  //  cycleDelay(20*16);
 
     vAHI_SpiStartTransfer8(cmd);
     vAHI_SpiWaitBusy();
@@ -57,7 +57,7 @@ bool initPS2Controller(ps2ControllerOp* ps2)
     uint8 u8Temp;
 
 
-     vAHI_SpiConfigure( 1, /* number of slave select lines in use */
+     vAHI_SpiConfigure( 2, /* number of slave select lines in use */
             E_AHI_SPIM_LSB_FIRST,
              1   ,
              1   ,
@@ -93,11 +93,11 @@ bool readPS2Controller(ps2ControllerOp* ps2)
         uint8 u8Temp;
         //mode 3 spi 250khz
 
-        vAHI_SpiConfigure( 1, /* number of slave select lines in use */
+        vAHI_SpiConfigure( 2, /* number of slave select lines in use */
             E_AHI_SPIM_LSB_FIRST,
              1  ,
              1  ,
-            32,
+            63,//32
 
             E_AHI_SPIM_INT_DISABLE, /* Disable SPI interrupt */
             E_AHI_SPIM_AUTOSLAVE_DSABL); /* Disable auto slave select        */

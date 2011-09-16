@@ -36,6 +36,7 @@ typedef enum
     dctBar,
     dctImage,
     dctGroup,
+    dctNumberSpinner,
 }displayControlType;
 
 typedef struct
@@ -120,3 +121,5 @@ typedef struct
 void renderPage(visualControl* controls, int len,bool forceUpdate,uint8* buf,int scanlen);
 void vWriteText(uint8* buf,int scanlen,char *pcString, uint8 u8Row, uint8 u8Column, uint8 u8Mask,uint8 width);
 int findControl(uint8 x, uint8 y,visualPage* page);
+
+extern uint8 rowValid[];
