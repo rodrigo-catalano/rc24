@@ -18,6 +18,12 @@ Copyright 2008 - 2009 © Alan Hopper
 
 
 */
+#ifndef _NMEAGPS_H
+#define _NMEAGPS_H
+
+#if defined __cplusplus
+extern "C" {
+#endif
 
 
 typedef struct
@@ -36,3 +42,7 @@ typedef struct
 void initNmeaGps(uint8 uart,int baudrate);
 bool readNmeaGps(nmeaGpsData* data);
 
+#if defined __cplusplus
+}
+#endif
+#endif

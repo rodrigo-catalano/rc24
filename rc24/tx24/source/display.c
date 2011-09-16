@@ -56,6 +56,9 @@ visualControl page1[]={{&txbatLabel,dctLabel},
 
 
 #include "ps2.h"
+
+uint8 rowValid[8];
+
 PRIVATE void itoa(int num,char op[],uint8 u8Base)
 {
     char buf[33];
@@ -88,6 +91,26 @@ PRIVATE void itoa(int num,char op[],uint8 u8Base)
 
     return;
 }
+void invalidateRegion(int x,int y,int w,int h)
+{
+	uint8 bits[]={1,2,4,8,16,32,64,128};
+	int topRow=y/8;
+	int bottomRow=(y+h-1)/8;
+	int i;
+	uint8 mask=0;
+	int left=x/16;
+	int right=(x+w-1)/16;
+
+	for(i=left;i<=right;i++)
+	{
+		mask|=bits[i];
+	}
+
+	for(i=topRow;i<=bottomRow;i++)
+	{
+		rowValid[i]|=mask;
+	}
+}
 
 void renderLabel(labelControl* label,bool forceUpdate,uint8* buf,int scanlen)
 {
@@ -95,6 +118,7 @@ void renderLabel(labelControl* label,bool forceUpdate,uint8* buf,int scanlen)
     {
         vWriteText(buf,scanlen,label->txt, label->x, label->y, label->mask, label->w);
         label->valid=TRUE;
+        invalidateRegion(label->x,label->y,label->w,label->h);
     }
 }
 void renderNumber(numberControl* label,bool forceUpdate,uint8* buf,int scanlen)
@@ -145,6 +169,8 @@ void renderNumber(numberControl* label,bool forceUpdate,uint8* buf,int scanlen)
         }
         vWriteText(buf,scanlen,b, label->x, label->y, label->mask, label->w);
         label->lastValue = val;
+        invalidateRegion(label->x,label->y,label->w,label->h);
+
     }
 }
 void renderBar(barControl* bar,bool forceUpdate,uint8* buf,int scanlen)
@@ -169,6 +195,8 @@ void renderBar(barControl* bar,bool forceUpdate,uint8* buf,int scanlen)
         }
         //vWriteText(buf,scanlen,b, label->x, label->y, label->mask);
         bar->lastValue = val;
+        invalidateRegion(bar->x,bar->y,bar->w,bar->h);
+
     }
 }
 void renderImage(imageControl* img,bool forceUpdate,uint8* buf,int scanlen)
@@ -188,16 +216,20 @@ void renderImage(imageControl* img,bool forceUpdate,uint8* buf,int scanlen)
             pu8Shadow+=scanlen-img->w;
         }
         img->valid=TRUE;
+        invalidateRegion(img->x,img->y,img->w,img->h);
     }
 }
 void renderPage(visualControl* controls, int len,bool forceUpdate,uint8* buf,int scanlen)
 {
+    int i;
+
     if(forceUpdate)
     {
         //clear buffer
         memset(buf,0,scanlen*8);
+        // TODO put display size in structure
+        invalidateRegion(0,0,128,64);
     }
-    int i;
     for(i=0;i<len;i++)
     {
         switch(controls[i].type)

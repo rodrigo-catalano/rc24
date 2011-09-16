@@ -81,6 +81,8 @@ typedef struct
 
 } tsCoordinatorData;
 
+#define ALARM_PIN E_AHI_DIO13_INT
+
 /****************************************************************************/
 /***        Local Function Prototypes                                     ***/
 /****************************************************************************/
@@ -123,6 +125,7 @@ void sleep(void);
 
 void enableModelComs(void);
 void txSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon);
+void loadModel(int idx);
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -171,7 +174,6 @@ int currentAuxChannel = 4;
 
 int activeAuxChannel = 4;
 
-int activeModel = 0;
 
 // only keep one model in ram at a time to avoid artificial limits on number
 // of models
@@ -326,13 +328,13 @@ PUBLIC void AppColdStart(void)
 		readPS2Controller(&ps2);
 
 		if (ps2.LFire1)
-			activeModel = 1;
+			loadModel(1);
 		if (ps2.LFire2)
-			activeModel = 2;
+			loadModel(2);
 		if (ps2.RFire1)
-			activeModel = 3;
+			loadModel(3);
 		if (ps2.RFire2)
-			activeModel = 4;
+			loadModel(4);
 
 		//wait for button release
 		while (ps2.LFire1 || ps2.LFire2 || ps2.RFire1 || ps2.RFire2)
@@ -386,6 +388,8 @@ PUBLIC void AppColdStart(void)
 
 	//use dio 16 for test sync pulse
 	vAHI_DioSetDirection(0, E_AHI_DIO16_INT);
+
+
 
 	//turn backlight on
 	vAHI_DioSetPullup(0, E_AHI_DIO17_INT);
@@ -451,6 +455,13 @@ PUBLIC void AppColdStart(void)
 	vAHI_TimerEnable(E_AHI_TIMER_1, 4, FALSE, TRUE, FALSE);
 	vAHI_TimerClockSelect(E_AHI_TIMER_1, FALSE, FALSE);
 	vAHI_TimerDIOControl(E_AHI_TIMER_1, FALSE);
+
+	//setup alarm pin
+	vAHI_DioSetPullup(0, ALARM_PIN);
+	vAHI_DioSetDirection(0, ALARM_PIN );
+	vAHI_DioSetOutput(0,ALARM_PIN );
+
+
 
 	pcComsPrintf("init done \r\n");
 	sCoordinatorData.eState = E_STATE_COORDINATOR_STARTED;
@@ -937,6 +948,9 @@ void txHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			break;
 		case 0xa0: //virtual click on lcd display
 			displayClick(msgBody[1], msgBody[2]);
+			break;
+		case 0xa2: //virtual drag on lcd display
+			displayDrag(((int8)msgBody[1]), ((int8)msgBody[2]));
 			break;
 		case 0xff: //display local text message
 			pcComsPrintf("Test0xff ");
@@ -1503,6 +1517,26 @@ void updateDisplay()
 	//   renderPage(pages[currentPage].controls,pages[currentPage].len,lastPage!=currentPage,lcdbuf,128);
 	//   LcdBitBlt(lcdbuf,128,0,0,128,64,&lcd);
 	//   lastPage=currentPage;
+
+	//crude rx battery alarm
+	bool alarm=FALSE;
+	//no alarm if no reading
+	if(rxbat>0)
+	{
+		//really need to do this on a per model basis
+		if(rxbat<310)alarm=TRUE; //single cell
+		if(rxbat>540 && rxbat<620)alarm=TRUE; // 2cell lipo but allow for case of 5v bec
+		if(rxbat>860 && rxbat<930)alarm=TRUE; // 3 cell allowing for fresh 2 cell
+	}
+	if(alarm)
+	{
+		vAHI_DioSetOutput(ALARM_PIN , 0);
+	}
+	else
+	{
+		vAHI_DioSetOutput(0,ALARM_PIN );
+	}
+
 }
 
 void updatePcDisplay()
@@ -1510,13 +1544,83 @@ void updatePcDisplay()
 	//crudely send part of the bitmap on each frame
 
 	static uint8 blockidx = 0;
+	uint8 bits[]={1,2,4,8,16,32,64,128};
+	int row=blockidx/8;
+	int bit=blockidx%8;
+	int tries=0;
 
-	pcComsSendPacket2(lcdbuf, blockidx * 16, 16, 0x92, blockidx);
+	while(tries<64)
+	{
+		if(bit==0)
+		{
+			if(rowValid[row]==0)
+			{
+				tries+=8;
+				row++;
+				if(row>7)row=0;
+				continue;
+			}
+		}
+		if((rowValid[row] & bits[bit])!=0)
+		{
+			blockidx=row*8+bit;
+			pcComsSendPacket2(lcdbuf, blockidx * 16, 16, 0x92, blockidx);
+			rowValid[row]^=bits[bit];
+
+			break;
+		}
+		bit++;
+		if(bit>7)
+		{
+			bit=0;
+			row++;
+			if(row>7)row=0;
+		}
+
+		tries++;
+	}
+	blockidx++;
+	if (blockidx >= 64)blockidx = 0;
+}
+void updatePcDisplayOld()
+{
+	//crudely send part of the bitmap on each frame
+
+	static uint8 blockidx = 0;
+	int i;
+	int j;
+	int bit;
+	bool regionFound=FALSE;
+	for(i=0;i<8;i++)
+	{
+		uint8 blockValid=rowValid[i];
+		if(blockValid!=0)
+		{
+			bit=1;
+			for(j=0;j<8;j++)
+			{
+				if((blockValid & bit)!=0)
+				{
+					rowValid[i]^=bit;
+					blockidx=i*8+j;
+					pcComsSendPacket2(lcdbuf, blockidx * 16, 16, 0x92, blockidx);
+					regionFound=TRUE;
+					break;
+				}
+				bit<<=1;
+			}
+		}
+		if(regionFound)break;
+	}
+
+
+//	pcComsSendPacket2(lcdbuf, blockidx * 16, 16, 0x92, blockidx);
 
 	blockidx++;
 	if (blockidx >= 64)
 		blockidx = 0;
 }
+
 
 void checkBattery()
 {
@@ -1563,6 +1667,22 @@ void CalibrateJoysticksNeutral()
 {
 }
 
+void loadModel(int idx)
+{
+	store s;
+
+	//storeSettings();
+	if (getOldStore(&s))
+	{
+		if (liveModelIdx < numModels )
+		{
+			liveModelIdx=idx;
+			loadModelByIdx(&s, &liveModel, liveModelIdx);
+
+			enableModelComs();
+		}
+	}
+}
 void nextModel()
 {
 	store s;
