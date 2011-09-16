@@ -323,9 +323,22 @@ namespace Serial
                             //    Thread.Sleep(200);
 
                             JennicPacket.Write(inp, buf, 0, 1, 0x0d);
+                       //     JennicPacket.Write(inp, buf, 0, 0, 0x07);
                             tbstatus.Text = "Set Status";
 
 
+                        }
+                        break;
+                    }
+                case 0x08: //clear all response
+                    {
+                        if (buff[2] == 0)
+                        {
+                            writeNextBlock();
+                        }
+                        else
+                        {
+                            MessageBox.Show("clear all fail. code - " + buff[2]);
                         }
                         break;
                     }
@@ -369,10 +382,12 @@ namespace Serial
 
                                 return true;
                             }
+                        
+                       
                         }
                         else
                         {
-
+                            MessageBox.Show("Write Failure. code - " + buff[2]);
                         }
                         break;
                     }
