@@ -27,16 +27,51 @@ using System.Text;
 using System.Windows.Forms;
 using System.Threading;
 
+
 namespace Serial
 {
     public partial class lcd : UserControl
     {
         Bitmap bmp = new Bitmap(128, 64, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-      
+        private int lastX=0;
+        private int lastY = 0;
+
+        public event MouseEventHandler Gesture;
+
         public lcd()
         {
             InitializeComponent();
+
+            this.MouseDown += new MouseEventHandler(lcd_MouseDown);
+            this.MouseUp += new MouseEventHandler(lcd_MouseUp);
+            this.MouseMove += new MouseEventHandler(lcd_MouseMove);
         }
+
+        protected void lcd_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (this.Capture && Gesture!=null)
+            {
+                //send drag event
+                int dx = e.X - lastX;
+                int dy = e.Y - lastY;
+                lastX = e.X;
+                lastY = e.Y;
+                Gesture(this,new MouseEventArgs(e.Button,e.Clicks,dx,dy,e.Delta));
+            }
+        }
+
+        protected void lcd_MouseUp(object sender, MouseEventArgs e)
+        {
+            this.Capture = false;
+        }
+
+        protected void lcd_MouseDown(object sender, MouseEventArgs e)
+        {
+            this.Capture = true;
+            lastX = e.X;
+            lastY = e.Y;
+        }
+
         public void UpdateBlock(int block,byte[] pixels,int start)
         {
             int yy=block/8*8;

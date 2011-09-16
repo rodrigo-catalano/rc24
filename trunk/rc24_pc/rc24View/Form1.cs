@@ -85,11 +85,15 @@ namespace Serial
             InitializeComponent();
 
             lcd1.MouseClick += new MouseEventHandler(lcd1_MouseClick);
+            lcd1.Gesture += new MouseEventHandler(lcd1_Gesture);
 
             nodeParameterList.SetValue += new Flobbster.Windows.Forms.PropertySpecEventHandler(nodeParameterList_SetValue);
             propertyGrid1.SelectedObject = nodeParameterList;
 
         }
+
+       
+        
 
         void nodeParameterList_SetValue(object sender, Flobbster.Windows.Forms.PropertySpecEventArgs e)
         {
@@ -115,7 +119,17 @@ namespace Serial
             routedMessage msg = new routedMessage(route.DirectLink, cmd);
             SendRoutedMessage(msg, SERIALCON);
         }
-
+        void lcd1_Gesture(object sender, MouseEventArgs e)
+        {
+            byte[] cmd = new byte[3];
+            cmd[0] = 0xa2;
+            sbyte dx = (sbyte)(e.X / 2);
+            sbyte dy = (sbyte)(e.Y / 2);
+            cmd[1] = (byte)dx;
+            cmd[2] = (byte)dy;
+            routedMessage msg = new routedMessage(route.DirectLink, cmd);
+            SendRoutedMessage(msg, SERIALCON);
+        }
 
         void inp_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
@@ -836,10 +850,11 @@ namespace Serial
             //send message to self via tx and rx
            
             loopTest = new loopBackCommsTest(500,new route(new byte[]{48,0,0,1},0));
+        
             //loopTest = new loopBackCommsTest(500,new route(new byte[]{16,1},0));
             
         //    loopTest = new loopBackCommsTest(50,new route(new byte[]{16,0},0));
-       //     loopTest = new loopBackCommsTest(50, new route(new byte[] { 0 }, 0));
+         //   loopTest = new loopBackCommsTest(500, new route(new byte[] { 0 }, 0));
             SendRoutedMessage(loopTest.sendNextCmd(null), SERIALCON);
         }
     }
