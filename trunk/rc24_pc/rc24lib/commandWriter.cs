@@ -90,6 +90,42 @@ namespace rc24
             Write((byte)(value >> 8));
             Write((byte)value);
         }
+        public void Write7BitEncodedUInt32(UInt32 value)
+        {
+            //msb first
+            if (value < 128)
+            {
+                Write((byte)value);
+            }
+            else if (value < 128 << 7)
+            {
+                Write((byte)((value>>7)|0x80));
+                Write((byte)((value) & 0x7f));
+            }
+            else if (value < 128 << 14)
+            {
+                Write((byte)((value >> 14) | 0x80));
+                Write((byte)((value >> 7) | 0x80));
+                Write((byte)((value) & 0x7f));
+            }
+            else if (value < 128 << 21)
+            {
+                Write((byte)((value >> 21) | 0x80));
+                Write((byte)((value >> 14) | 0x80));
+                Write((byte)((value >> 7) | 0x80));
+                Write((byte)((value) & 0x7f));
+            }
+            else 
+            {
+                Write((byte)((value >> 28) | 0x80));
+                Write((byte)((value >> 21) | 0x80));
+                Write((byte)((value >> 14) | 0x80));
+                Write((byte)((value >> 7) | 0x80));
+                Write((byte)((value) & 0x7f));
+            }
+           
+            
+        }
         public virtual void Write(bool[] value, byte start, byte len)
         {
             Write(start);
@@ -102,41 +138,41 @@ namespace rc24
             Write(len);
             for (int i = start; i < len; i++) Write(value[i]);
         }
-        public virtual void Write(byte[] value, byte start, byte len)
+        public virtual void Write(byte[] value, UInt32 start, byte len)
         {
-            Write(start);
+            Write7BitEncodedUInt32(start);
             Write(len);
             Write(value,start,len);
         }
-        public virtual void Write(sbyte[] value, byte start, byte len)
+        public virtual void Write(sbyte[] value, UInt32 start, byte len)
         {
-            Write(start);
+            Write7BitEncodedUInt32(start);
             Write(len);
-            for (int i = start; i < len; i++) Write(value[i]);
+            for (UInt32 i = start; i < len; i++) Write(value[i]);
         }
-        public virtual void Write(Int16[] value,byte start,byte len)
+        public virtual void Write(Int16[] value, UInt32 start, byte len)
         {
-            Write(start);
+            Write7BitEncodedUInt32(start);
             Write(len);
-            for (int i = start; i < len; i++) Write(value[i]);
+            for (UInt32 i = start; i < len; i++) Write(value[i]);
         }
-        public virtual void Write(UInt16[] value, byte start, byte len)
+        public virtual void Write(UInt16[] value, UInt32 start, byte len)
         {
-            Write(start);
+            Write7BitEncodedUInt32(start);
             Write(len);
-            for (int i = start; i < len; i++) Write(value[i]);
+            for (UInt32 i = start; i < len; i++) Write(value[i]);
         }
-        public virtual void Write(UInt32[] value, byte start, byte len)
+        public virtual void Write(UInt32[] value, UInt32 start, byte len)
         {
-            Write(start);
+            Write7BitEncodedUInt32(start);
             Write(len);
-            for (int i = start; i < len; i++) Write(value[i]);
+            for (UInt32 i = start; i < start+len; i++) Write(value[i]);
         }
-        public virtual void Write(Int32[] value, byte start, byte len)
+        public virtual void Write(Int32[] value, UInt32 start, byte len)
         {
-            Write(start);
+            Write7BitEncodedUInt32(start);
             Write(len);
-            for (int i = start; i < len; i++) Write(value[i]);
+            for (UInt32 i = start; i < start+len; i++) Write(value[i]);
         }
         public virtual void Write(UInt64[] value, byte start, byte len)
         {
@@ -162,6 +198,7 @@ namespace rc24
             Write(len);
             for (int i = start; i < len; i++) Write(value[i]);
         }
+
         public byte[] getCommand()
         {
             return _buffer.ToArray();
