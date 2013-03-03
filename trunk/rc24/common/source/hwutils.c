@@ -27,7 +27,7 @@
 void cycleDelay(uint32 del)
 {
 
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 	asm volatile("bg.addi r3,r3,-4;");
 	asm volatile("bg.bgesi r3,0,-4;");
 	//adjust to 1 cycle accuracy -
@@ -38,7 +38,8 @@ void cycleDelay(uint32 del)
 	asm volatile("bg.beqi r3,-1,4;");
 
 	asm volatile("bt.nop 0;");
-#else
+#endif
+#ifdef JN5139
 
 	//delay for del cycles + fixed overhead
 	//interrupts will affect the timing

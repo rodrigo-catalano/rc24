@@ -42,6 +42,8 @@ TARGET = rx24
 # Default target device is the JN5139
 JENNIC_CHIP ?= JN5139R1
 
+#define JN5139 in the same way as 5148 and 5168
+CFLAGS += -DJN5139=5139 
 ##############################################################################
 # Default DK2 development kit target hardware
 
@@ -115,6 +117,12 @@ APPSRC += radiocoms.c
 APPSRC += commonCommands.c
 APPSRC += exceptions.c
 APPSRC += oneWireBus.c
+APPSRC += mpu6050.c
+APPSRC += routedObject.c
+APPSRC += imu.c
+APPSRC += pilot.c
+APPSRC += fixed.c
+APPSRC += blunt.c
 
 APPSRC += AppQueueApi.c
 
@@ -187,7 +195,7 @@ BOARD_LIB     = BoardLib_$(JENNIC_CHIP_FAMILY)
 
 LIBFILE = $(APP_SRC_DIR)/AudioLib_JN5139R1.a
 
-#LIBFILE = $(SDK_BASE_DIR)/Common/Library/libm.a
+LIBFILE += $(SDK_BASE_DIR)/Common/Library/libm.a
 
 
 LIBFILE += $(BOARDAPI_LIB)/$(BOARD_LIB).a

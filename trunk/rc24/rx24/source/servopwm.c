@@ -49,7 +49,7 @@
 #include <mac_sap.h>
 #include <mac_pib.h>
 #include <stdlib.h>
-//#include <Printf.h>
+#include <Printf.h>
 #include <sys/param.h>
 
 #include "swEventQueue.h"
@@ -111,14 +111,16 @@ PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap);
 // Builds ordered list of output items based on pulse width
 PRIVATE void buildServoQueue(void);
 
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 
-#else
+#endif
+#ifdef JN5139
 // TODO - Where is this declared - should be in a header
+
 extern void intr_handler (void);
 #endif
 
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 // Tick interrupt handlers
 // TODO - Check PRIVATE doesn't break anything
 #define TICK_INTR *((volatile uint32 *)(0x4000004))
@@ -193,7 +195,7 @@ PUBLIC void initServoPwm(const uint8 nServos)
 	vAHI_TickTimerInterval(128 * 16);
 
 	// Register the tick timer handler
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 	// TODO - fix commented code
 	//vAHI_TickTimerRegisterCallback (vTick_TimerISR);
 #else
@@ -213,12 +215,13 @@ PUBLIC void initServoPwm(const uint8 nServos)
 	//the standard interrupt handler will call lower
 	//priority interrupts first, even if the tick timer
 	//interrupted first.
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 
 	TICK_INTR = (uint32) tick_handler;
 	EXT_INTR = (uint32) extern_intr_handler;
 
-#else
+#endif
+#ifdef JN5139
 	MICRO_SET_VSR_HANDLER(MICRO_VSR_NUM_TICK,intr_handler);
 	MICRO_SET_VSR_HANDLER(MICRO_VSR_NUM_EXT, intr_handler);
 #endif
@@ -803,7 +806,7 @@ PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap)
 		//todo test
 		//send event to app context
 		if (frameStartCallback != NULL)
-			swEventQueuePush(frameStartCallback, NULL);
+			swEventQueuePush(frameStartCallback,NULL, NULL);
 
 	}
 	servoQueueIdx++;
@@ -825,7 +828,7 @@ PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap)
 	//   lat[servoQueueIdx]=latency;
 }
 
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 
 /****************************************************************************
  *

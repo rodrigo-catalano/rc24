@@ -30,6 +30,7 @@ Copyright 2008 - 2009 © Alan Hopper
 #include "swEventQueue.h"
 #include "routedmessage.h"
 #include "commonCommands.h"
+#include "routedObject.h"
 
 #include "oneWireBus.h"
 
@@ -52,18 +53,15 @@ uint8 oneWireComsWriteIdx=0;
 uint8 oneWireComsReadIdx=0;
 volatile uint8 oneWireComsTxLock=0;
 
-uint32 oneWireCrcErrors=0;
-uint32 oneWirePacketsSent=0;
-uint32 oneWirePacketsReceived=0;
 
 bool ignoreEcho=FALSE;
 
 
 PRIVATE ccParameter oneWireExposedParameters[]=
 {
-	{ "oneWire Crc Errors",CC_UINT32,&oneWireCrcErrors,0,CC_NO_GETTER,CC_NO_SETTER },
-	{ "oneWire Packets Sent",CC_UINT32,&oneWirePacketsSent,0,CC_NO_GETTER,CC_NO_SETTER },
-	{ "oneWire Packets Received",CC_UINT32,&oneWirePacketsReceived,0,CC_NO_GETTER,CC_NO_SETTER },
+	{ "oneWire Crc Errors",CC_UINT32,NULL,offsetof(oneWireBus,oneWireCrcErrors),0,CC_NO_GETTER,CC_NO_SETTER },
+	{ "oneWire Packets Sent",CC_UINT32,NULL,offsetof(oneWireBus,oneWirePacketsSent),0,CC_NO_GETTER,CC_NO_SETTER },
+	{ "oneWire Packets Received",CC_UINT32,NULL,offsetof(oneWireBus,oneWirePacketsReceived),0,CC_NO_GETTER,CC_NO_SETTER },
 };
 
 PRIVATE ccParameterList oneWireParameterList=
@@ -98,7 +96,11 @@ PRIVATE void vFifoPutC(unsigned char c)
 
   oneWireComsTxLock=0;
 }
-
+void createOneWireBus(oneWireBus* com)
+{
+	com->ro.parameters=oneWireParameterList;
+	com->ro.messageHandler=&routedObjectHandleMessage;
+}
 void initOneWireBus(oneWireBus* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb)
 {
 	com->connector_id=id;
@@ -131,12 +133,19 @@ void initOneWireBus(oneWireBus* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb)
         TRUE,//rx data
         E_AHI_UART_FIFO_LEVEL_1);
 
-
+       com->enabled=TRUE;
+}
+//message handler for sensor proxy - passes message from onewire object to sensor
+void oneWireSendToBus(routedObject* obj,uint8* msg,uint8 len,uint8 fromCon)
+{
+	//this isn't a one wire object, it is a sensor proxy
+	//as such it should have the to address
+//	oneWireSendPacket((oneWireBus*)obj,msg, 0, length, uint8 addr);
 }
 
-void oneWireSendPacket(uint8 buff[], int start, uint8 length, uint8 addr)
+void oneWireSendPacket(oneWireBus* me,uint8 buff[], int start, uint8 length, uint8 addr)
 {
-	ignoreEcho=TRUE;
+   ignoreEcho=TRUE;
    int i;
    uint8 checksum=0;
    vFifoPutC(length+2);
@@ -150,12 +159,14 @@ void oneWireSendPacket(uint8 buff[], int start, uint8 length, uint8 addr)
        checksum^=b;
    }
    vFifoPutC(checksum);
-   oneWirePacketsSent++;
+   me->oneWirePacketsSent++;
 }
 
-void oneWireParsePacket(void* buff)
+void oneWireParsePacket(void*context,void* buff)
 {
-    oneWirePacketsReceived++;
+	oneWireBus* me=(oneWireBus*)context;
+
+	me->oneWirePacketsReceived++;
 
     if(ignoreEcho==TRUE)
     {
@@ -164,36 +175,40 @@ void oneWireParsePacket(void* buff)
     }
 
 	//runs in app not interrupt context
-    uint8 retbuf[256];
+
     uint8* packet=(uint8*)buff;
     uint8 len=packet[0];
     if(len>0 && packet[len]==0)
     {
-     	oneWireHandleRoutedMessage(&packet[2],len-2,packet[1]);
+    	//pass message from sensor to i wire object
+    	//to address is the sensor id
+    	(*me->ro.messageHandler)(&me->ro,&packet[2],len-2,packet[1]);
+
+//    	oneWireHandleRoutedMessage(&packet[2],len-2,packet[1]);
     }
     else
     {
-    	if(len>0&& packet[len]!=0)oneWireCrcErrors++;
+    	if(len>0&& packet[len]!=0)me->oneWireCrcErrors++;
     }
 }
 
-void oneWireSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
+void oneWireSendRoutedMessage(oneWireBus* me,uint8* msg, uint8 len, uint8 toCon)
 {
 	// Send via appropriate channel
 	if(toCon==0)
 	{
 		//send up to rx main node
 		// TODO make this a settable callback connection ie fn* and conid
-		rxHandleRoutedMessage(msg, len, 2);
+//		rxHandleRoutedMessage(msg, len, 4);
 	}
 	else
 	{
 		//send to one wire bus
-		oneWireSendPacket(msg, 0, len, toCon);
+		oneWireSendPacket(me,msg, 0, len, toCon);
 	}
 
 }
-
+/*
 void oneWireHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 {
 	// TODO - make a definition for the buffer length
@@ -226,11 +241,13 @@ void oneWireHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			uint8 i;
 			//enable the first 7 addresses until we have a method for either sending
 			//all 256 or only active ones
-			for (i = 0; i < 8; i++)
-			{
-				if (i != fromCon)
-					replyBody[replyLen++] = i;
-			}
+
+		//	for (i = 0; i < 8; i++)
+		//	{
+		//		if (i != fromCon)
+		//			replyBody[replyLen++] = i;
+		//	}
+
 			break;
 		}
 		case CMD_ENUM_GROUP :
@@ -265,7 +282,7 @@ void oneWireHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 		oneWireSendRoutedMessage(msg, len, toCon);
 	}
 }
-
+*/
 
 PRIVATE void oneWire_HandleUart1Interrupt(uint32 u32Device, uint32 u32ItemBitmap)
 {
@@ -296,7 +313,8 @@ PRIVATE void oneWire_HandleUart1Interrupt(uint32 u32Device, uint32 u32ItemBitmap
                     //set checksum to 0 if ok
                 	oneWireComsBuffers[oneWireComsCurrentBuf][oneWireComsUploadLen-1]-=oneWireComsChecksum;
                     // post to app context
-                    swEventQueuePush(oneWireParsePacket,&oneWireComsBuffers[oneWireComsCurrentBuf][0]);
+                	//TODO MUST pass context
+                    swEventQueuePush(oneWireParsePacket,NULL,&oneWireComsBuffers[oneWireComsCurrentBuf][0]);
 
                     //reset for next packet
                     oneWireComsUploadLen=0;

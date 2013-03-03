@@ -41,6 +41,9 @@ PUBLIC char* rxHardwareTypeEnumValues[rxHardwareTypeCount] =
 
 PUBLIC uint8 rxHardwareType = 0;
 
+#ifdef JN5168
+#define E_AHI_DIO20_INT 20
+#endif
 /****************************************************************************/
 /***        Local Variables                                               ***/
 /****************************************************************************/
@@ -100,6 +103,7 @@ opChannel standard5channel_1wire[20] =
 { nc, 0 },
 { nc, 0 },
 { nc, 0 } };
+
 
 // Set up for GB rx 1.2 with 8 channels
 opChannel gb1_2_8channel[20] =
@@ -304,6 +308,15 @@ void initOutputs(rxHardwareOptions* rxHardware)
 		{
 			if (outputMapping[i].pin == E_AHI_DIO19_INT || outputMapping[i].pin
 					== E_AHI_DIO20_INT)
+			{
+				outputMapping[i].type = nc;
+			}
+		}
+		//prevent use of i2c pins if used
+		if(rxHardware->i2cInUse)
+		{
+			if (outputMapping[i].pin == E_AHI_DIO14_INT || outputMapping[i].pin
+								== E_AHI_DIO15_INT)
 			{
 				outputMapping[i].type = nc;
 			}

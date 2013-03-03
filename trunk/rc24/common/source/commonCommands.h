@@ -74,7 +74,7 @@ codes >= 0x80 app
 #define CMD_GET_PARAM_RESP 4
 
 
-typedef void (*VOID_FN)(void);
+typedef void (*VOID_FN)(void *);
 // types that can be sent in parameter commands
 typedef enum
 {
@@ -125,6 +125,7 @@ typedef union
 #define CC_NO_SETTER NULL
 #define CC_NO_GETTER NULL
 #define CC_NO_VAR_ACCESS NULL
+#define CC_NO_OFFSET 0
 
 
 typedef struct
@@ -132,7 +133,8 @@ typedef struct
 	const char* name;
 	ccType type;
 	void* paramPtr;  //set to NULL for accessor function access
-	int arrayLen; //length of array parameter
+	uint32 paramOffset;
+	uint32 arrayLen; //length of array parameter
 	void* getFunction;
 	VOID_FN setFunction;
 } ccParameter;
@@ -148,6 +150,13 @@ uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg
 uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
 uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
 
+
+
+/*
+uint8 ccEnumGroupObjectCommand(routedObject* obj, uint8* inMsg, uint8* outMsg);
+uint8 ccSetObjectParameter(routedObject* obj, uint8* inMsg, uint8* outMsg);
+uint8 ccGetObjectParameter(routedObject* obj, uint8* inMsg, uint8* outMsg);
+*/
 #if defined __cplusplus
 }
 #endif

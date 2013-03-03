@@ -84,6 +84,8 @@ PUBLIC void vFifoPutCf(unsigned char c)
 
 PUBLIC void vFifoPutC(unsigned char c)
 {
+  while ((u8AHI_UartReadLineStatus(E_AHI_UART_0) & E_AHI_UART_LS_THRE ) == 0);
+
   pcComsTxLock=1;
   pcComsTxBuffer[pcComsWriteIdx++]=c;
 
@@ -93,6 +95,8 @@ PUBLIC void vFifoPutC(unsigned char c)
   }
 
   pcComsTxLock=0;
+
+ // while(pcComsWriteIdx-pcComsReadIdx>250);
 }
 
 void initPcComs(pcCom* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb)
@@ -191,7 +195,7 @@ void pcComsSendPacket2(uint8 buff[], int start, uint8 length, uint8 cmd,uint8 cm
 }
 
 
-void pcComsParsePacket(void* buff)
+void pcComsParsePacket(void* context,void* buff)
 {
     //runs in app not interrupt context
     uint8 retbuf[256];
@@ -335,7 +339,7 @@ PRIVATE void pcComs_HandleUart0Interrupt(uint32 u32Device, uint32 u32ItemBitmap)
                     //set checksum to 0 if ok
                     pcComsBuffers[pcComsCurrentBuf][pcComsUploadLen-1]-=pcComsChecksum;
                     // post to app context
-                    swEventQueuePush(pcComsParsePacket,&pcComsBuffers[pcComsCurrentBuf][0]);
+                    swEventQueuePush(pcComsParsePacket,NULL,&pcComsBuffers[pcComsCurrentBuf][0]);
 
                     //reset for next packet
                     pcComsUploadLen=0;

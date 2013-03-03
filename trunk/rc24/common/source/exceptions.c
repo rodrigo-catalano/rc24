@@ -153,9 +153,13 @@ void vIllegalInstructionHandler(void)
  ****************************************************************************/
 void setExceptionHandlers()
 {
+#ifdef PC
+
+#else
 	BUS_ERROR = (uint32) vBusErrorhandler;
 	UNALIGNED_ACCESS = (uint32) vUnalignedAccessHandler;
 	ILLEGAL_INSTRUCTION = (uint32) vIllegalInstructionHandler;
+#endif
 }
 /****************************************************************************
  *
@@ -174,10 +178,11 @@ void setExceptionHandlers()
  ****************************************************************************/
 resetType getResetReason()
 {
-	resetType ret;
+	resetType ret=NOEXCEPTION;
 #ifdef JN5148
 	ret=u64AHI_WakeTimerReadLarge(E_AHI_WAKE_TIMER_1)/1000;
-#else
+#endif
+#ifdef JN5139
 	ret=u32AHI_WakeTimerRead(E_AHI_WAKE_TIMER_1)/1000;
 #endif
 	if(ret>ILLEGALINSTRUCTION)ret=NOEXCEPTION;

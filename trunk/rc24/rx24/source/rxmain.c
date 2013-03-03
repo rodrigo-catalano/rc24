@@ -39,16 +39,26 @@
 #include "codeupdate.h"
 #include "radiocoms.h"
 #include "commonCommands.h"
+#include "routedObject.h"
 #include "exceptions.h"
 #include "oneWireBus.h"
+
+#include "rxmain.h"
+#include "imu.h"
+#include "pilot.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
 /****************************************************************************/
 
+// IDs of real or virtual objects that rx can route messages to or from
+
 #define CONTX 0
 #define CONPC 1
-#define CONONEWIRE 2
+
+#define CONIMU 2
+#define CONPILOT 3
+#define CONONEWIRE 4
 
 #define FRAME_RATE 20	// Frame rate in Hz
 
@@ -120,7 +130,7 @@ PRIVATE void vHandleMcpsDataDcfm(MAC_McpsDcfmInd_s *psMcpsInd);
 PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len);
 PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast);
 
-void frameStartEvent(void* buff);
+void frameStartEvent(void* context,void* buff);
 
 void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon);
 void txComsSendRoutedPacket(uint8* msg, uint8 len);
@@ -128,7 +138,7 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon);
 
 void loadDefaultSettings(void);
 void loadSettings(void);
-void storeSettings(void);
+void storeSettings(void* context);
 void loadRadioSettings(store* s);
 void saveRadioSettings(store* s);
 void loadGeneralSettings(store* s);
@@ -153,7 +163,8 @@ PRIVATE tsEndDeviceData sEndDeviceData;	// End device state store
 PRIVATE uint32 rxdpackets = 0;	// Global packet counter
 PRIVATE uint8 txLinkQuality = 0;	// Link quality from last message
 PRIVATE uint32 frameCounter = 0;	// Good for almost 3 years at 50/sec
-PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
+//PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
+//PRIVATE uint16 rxMixedDemands[20];  //positions post any mixing on rx
 PRIVATE uint8 rxLEDFlashCount = 0;	// Counter for LED flasher
 PRIVATE uint8 rxLEDFlashLimit = LED_FLASH_MED;	// Count limit to toggle LED
 PRIVATE bool rxLEDState = FALSE;	// State of LED
@@ -161,7 +172,7 @@ PRIVATE bool rxLEDState = FALSE;	// State of LED
 PRIVATE bool useHighPowerModule = FALSE;
 PRIVATE bool frameReceived = FALSE;
 
-// TODO - make local to using function
+
 PRIVATE nmeaGpsData gpsData;	// Data from GPS device
 
 PRIVATE uint8 returnPacketIdx=0;
@@ -169,7 +180,7 @@ PRIVATE uint8 returnPacketIdx=0;
 PRIVATE uint32 txMACh = 0;	// Tx MAC address high word
 PRIVATE uint32 txMACl = 0;	// Tx MAC address low word
 
-// TODO - only used in a function, move there?
+
 pcCom pccoms;
 
 // temp means of selecting debug route from pc interface
@@ -199,36 +210,40 @@ PUBLIC char* rxComPortEnumValues[3] =
 //rx hardware settings
 rxHardwareOptions rxHardware;
 
-oneWireBus sensorBus1;
+#define member_sizeof(T,F) sizeof(((T *)0)->F)
 
 //list of parameters that can be read or set by connected devices
 //either by direct access to variable or through getters and setters
 //their command id is defined by position in the list
 ccParameter exposedParameters[]=
 {
-		{ "RX Demands", CC_UINT16_ARRAY, rxDemands, sizeof(rxDemands) / sizeof(rxDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,CC_NO_GETTER,storeSettings },
-		{ "Radio Debug",CC_BOOL,&radioDebug,0,CC_NO_GETTER,CC_NO_SETTER },
-		{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Hardware Type", CC_ENUMERATION, &rxHardwareType, 5 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Hardware Type Enum", CC_ENUMERATION_VALUES, rxHardwareTypeEnumValues,
+//		{ "RX Demands", CC_UINT16_ARRAY, rxDemands,0, sizeof(rxDemands) / sizeof(rxDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "RX Demands", CC_UINT16_ARRAY,NULL,offsetof(Rx,rxDemands),20 ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,0,CC_NO_GETTER,storeSettings },
+		{ "Radio Debug",CC_BOOL,&radioDebug,0,0,CC_NO_GETTER,CC_NO_SETTER },
+		{ "High Power Module", CC_BOOL, &useHighPowerModule,0, 0 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Hardware Type", CC_ENUMERATION, &rxHardwareType,0, 5 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Hardware Type Enum", CC_ENUMERATION_VALUES, rxHardwareTypeEnumValues,0,
 			rxHardwareTypeCount ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedBytesRxd",CC_UINT32,&radioRoutedBytesRxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedPacketsRxd",CC_UINT32,&radioRoutedPacketsRxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedBytesTxd",CC_UINT32,&radioRoutedBytesTxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedPacketsTxd",CC_UINT32,&radioRoutedPacketsTxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedBytesRxd",CC_UINT32,&uart0RoutedBytesRxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedPacketsRxd",CC_UINT32,&uart0RoutedPacketsRxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedBytesTxd",CC_UINT32,&uart0RoutedBytesTxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedPacketsTxd",CC_UINT32,&uart0RoutedPacketsTxd,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RxCrcErrors",CC_UINT32,&pcComsCrcErrors,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Max Intr Latency",CC_UINT32,&maxActualLatency,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedBytesRxd",CC_UINT32,&radioRoutedBytesRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedPacketsRxd",CC_UINT32,&radioRoutedPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedBytesTxd",CC_UINT32,&radioRoutedBytesTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radioRoutedPacketsTxd",CC_UINT32,&radioRoutedPacketsTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedBytesRxd",CC_UINT32,&uart0RoutedBytesRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedPacketsRxd",CC_UINT32,&uart0RoutedPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedBytesTxd",CC_UINT32,&uart0RoutedBytesTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RoutedPacketsTxd",CC_UINT32,&uart0RoutedPacketsTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "uart0RxCrcErrors",CC_UINT32,&pcComsCrcErrors,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Max Intr Latency",CC_UINT32,&maxActualLatency,0,0,CC_NO_GETTER,CC_NO_SETTER},
 
-		{ "One Wire Comm", CC_ENUMERATION, &rxHardware.desiredOneWirePort,18 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "GPS Comm", CC_ENUMERATION, &rxHardware.desiredGpsPort, 18 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Com Port Enum", CC_ENUMERATION_VALUES, rxComPortEnumValues,
+		{ "One Wire Comm", CC_ENUMERATION, &rxHardware.desiredOneWirePort,0,18 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "GPS Comm", CC_ENUMERATION, &rxHardware.desiredGpsPort,0, 18 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "Com Port Enum", CC_ENUMERATION_VALUES, rxComPortEnumValues,0,
 					sizeof(rxComPortEnumValues)/sizeof(rxComPortEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "gpsPacketsRxd",CC_UINT32,&gpsData.nmeaPacketsRxd,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "gpsPacketsRxd",CC_UINT32,&gpsData.nmeaPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "I2C Enabled", CC_BOOL, &rxHardware.i2cInUse, 0 ,0,CC_NO_GETTER,CC_NO_SETTER},
+		{ "RX Mixed Demands", CC_UINT16_ARRAY,NULL,offsetof(Rx,rxMixedDemands),20 ,CC_NO_GETTER,CC_NO_SETTER},
+
 
 };
 ccParameterList parameterList=
@@ -236,6 +251,59 @@ ccParameterList parameterList=
 		exposedParameters,
 		sizeof(exposedParameters)/sizeof(exposedParameters[0])
 };
+
+
+
+IMU imu;
+Pilot pilot;
+oneWireBus sensorBus1;
+Rx RX;
+routedObject TX;
+routedObject PCcon;
+
+
+
+routedConnection imuConnections[]={{&RX.ro,CONIMU}};
+routedConnection pilotConnections[]={{&RX.ro,CONPILOT}};
+routedConnection onewConnections[]={{&RX.ro,CONONEWIRE}};
+routedConnection rxConnections[]={{&TX,0},{&PCcon,0},{&imu.ro,0},{&pilot.ro,0},{&sensorBus1.ro,0}};
+routedConnection txConnections[]={{&RX.ro,0}};
+
+void RXHandleMessage(routedObject* obj,uint8* msg, uint8 len, uint8 fromCon)
+{
+//	dbgPrintf("%s %d %d - %d %d %d %d %d %d %d %d",obj->name,len,fromCon,msg[0],msg[1],msg[2],msg[3],msg[4],msg[5],msg[6],msg[7]);
+	rxHandleRoutedMessage( msg, len, fromCon);
+}
+
+void connectObjects()
+{
+	imu.ro.name="IMU";
+	imu.ro.connections=imuConnections;
+	imu.ro.nConnections=1;
+	createIMU(&imu);
+
+	pilot.ro.name="Pilot";
+	pilot.ro.connections=pilotConnections;
+	pilot.ro.nConnections=1;
+	createPilot(&pilot);
+
+	RX.ro.name="RX";
+	RX.ro.connections=rxConnections;
+	RX.ro.nConnections=5;
+	RX.ro.parameters=parameterList;
+	RX.ro.messageHandler=RXHandleMessage;
+
+	sensorBus1.ro.name="1 wire";
+	sensorBus1.ro.connections=onewConnections;
+	sensorBus1.ro.nConnections=1;
+	createOneWireBus(&sensorBus1);
+
+	routedObjectConnect(&imu.ro);
+	routedObjectConnect(&pilot.ro);
+	routedObjectConnect(&RX.ro);
+	routedObjectConnect(&sensorBus1.ro);
+
+}
 
 /****************************************************************************/
 /***        Exported Functions                                            ***/
@@ -278,10 +346,11 @@ void dbgPrintf(const char *fmt, ...)
  ****************************************************************************/
 PUBLIC void AppColdStart(void)
 {
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 	// TODO - use watch dog and probably disable brownout reset
 	vAHI_WatchdogStop();
-#else
+#endif
+#ifdef JN5139
 	vAppApiSetBoostMode(TRUE);
 #endif
 
@@ -328,7 +397,7 @@ PUBLIC void AppColdStart(void)
 	setRadioDataCallback(rxHandleRoutedMessage, CONTX);
 
 	// Retrieve the MAC address and log it to the PC
-	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	module_MAC_ExtAddr_s* macptr = (module_MAC_ExtAddr_s*)pvAppApiGetMacAddrLocation();
 
 	// Send init string to PC log rx mac andbound tx mac to pc
 	dbgPrintf("rx24 2.10 rx %x %x tx %x %x",macptr->u32H, macptr->u32L,txMACh ,txMACl );
@@ -342,9 +411,13 @@ PUBLIC void AppColdStart(void)
 	// TODO - fix magic numbers grrr
 	int i;
 	for (i = 0; i < 20; i++)
-		rxDemands[i] = 4096;
-
-
+	{
+		RX.rxDemands[i] = 4096;
+		RX.rxMixedDemands[i] = 4096;
+	}
+	//TODO load from settings
+	imu.enabled=FALSE;
+	rxHardware.i2cInUse=imu.enabled;
 
 
 
@@ -352,10 +425,13 @@ PUBLIC void AppColdStart(void)
 	initInputs(&rxHardware);
 	initOutputs(&rxHardware);
 
+	connectObjects();
+
 	if(rxHardware.oneWireEnabled==TRUE)
 	{
 		// enable onewire sensor bus
 		initOneWireBus(&sensorBus1,CONONEWIRE,rxHardware.oneWirePort,rxHandleRoutedMessage);
+
 	}
 	if(rxHardware.gpsEnabled==TRUE)
 	{
@@ -415,7 +491,7 @@ PUBLIC void AppWarmStart(void)
  *
  * NOTES:
  ****************************************************************************/
-void frameStartEvent(void* buff)
+void frameStartEvent(void* context,void* buff)
 {
 	// Called every frame, currently 20ms
 	frameCounter++;
@@ -444,7 +520,7 @@ void frameStartEvent(void* buff)
 			packet[4] = 0; //no route
 			packet[5] = 16; //bind request
 
-			module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+			module_MAC_ExtAddr_s* macptr = (module_MAC_ExtAddr_s*)pvAppApiGetMacAddrLocation();
 
 			// TODO - can't we just memcpy the whole thing in one call?
 			memcpy(&packet[6], &macptr->u32L, sizeof(macptr->u32L));
@@ -486,6 +562,9 @@ void frameStartEvent(void* buff)
 			rxLEDFlashCount = 0;
 		}
 	}
+	pilotDoMix(&pilot,&RX,&imu);
+	updateOutputs(RX.rxMixedDemands);
+
 }
 
 /****************************************************************************/
@@ -537,7 +616,7 @@ PRIVATE void vInitSystem(void)
 	// sometimes useful during development
 	// all messages are passed up from lower levels
 	// MAC_vPibSetPromiscuousMode(s_pvMac, TRUE, FALSE);
-	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	module_MAC_ExtAddr_s* macptr = (module_MAC_ExtAddr_s*)pvAppApiGetMacAddrLocation();
 
 	//moved to after u32AHI_Init() for jn5148
 	randomizeHopSequence(((uint32) macptr->u32H) ^ ((uint32) macptr->u32L));
@@ -750,7 +829,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 	// Get the mac address
 	// TODO - pvAppApiGetMacAddrLocation not in docs
 	// TODO - macptr not used as code is commented out
-	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	module_MAC_ExtAddr_s* macptr = (module_MAC_ExtAddr_s*)pvAppApiGetMacAddrLocation();
 
 	uint8 realTimeDataLen=psFrame->au8Sdu[0];
 	uint8 lowPriorityDataLen=psFrame->u8SduLength-1-realTimeDataLen;
@@ -974,25 +1053,25 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 		// Decode servo data from packet
 		// TODO - define a structure for this using bitfields
 
-		rxDemands[0] = pu8Data[0] + ((pu8Data[1] & 0x00f0) << 4);
-		rxDemands[1] = ((pu8Data[1] & 0x000f)) + (pu8Data[2] << 4);
-		rxDemands[2] = pu8Data[3] + ((pu8Data[4] & 0x00f0) << 4);
-		rxDemands[3] = ((pu8Data[4] & 0x000f)) + (pu8Data[5] << 4);
+		RX.rxDemands[0] = pu8Data[0] + ((pu8Data[1] & 0x00f0) << 4);
+		RX.rxDemands[1] = ((pu8Data[1] & 0x000f)) + (pu8Data[2] << 4);
+		RX.rxDemands[2] = pu8Data[3] + ((pu8Data[4] & 0x00f0) << 4);
+		RX.rxDemands[3] = ((pu8Data[4] & 0x000f)) + (pu8Data[5] << 4);
 
 		if(u8Len>=11)
 		{
-			rxDemands[4] = pu8Data[6] + ((pu8Data[7] & 0x00f0) << 4);
-			rxDemands[5] = ((pu8Data[7] & 0x000f)) + (pu8Data[8] << 4);
+			RX.rxDemands[4] = pu8Data[6] + ((pu8Data[7] & 0x00f0) << 4);
+			RX.rxDemands[5] = ((pu8Data[7] & 0x000f)) + (pu8Data[8] << 4);
 		}
 		if(u8Len>=14)
 		{
-			rxDemands[6] = pu8Data[9] + ((pu8Data[10] & 0x00f0) << 4);
-			rxDemands[7] = ((pu8Data[10] & 0x000f)) + (pu8Data[11] << 4);
+			RX.rxDemands[6] = pu8Data[9] + ((pu8Data[10] & 0x00f0) << 4);
+			RX.rxDemands[7] = ((pu8Data[10] & 0x000f)) + (pu8Data[11] << 4);
 		}
 		if(u8Len>=17)
 		{
-			rxDemands[8] = pu8Data[12] + ((pu8Data[13] & 0x00f0) << 4);
-			rxDemands[9] = ((pu8Data[13] & 0x000f)) + (pu8Data[14] << 4);
+			RX.rxDemands[8] = pu8Data[12] + ((pu8Data[13] & 0x00f0) << 4);
+			RX.rxDemands[9] = ((pu8Data[13] & 0x000f)) + (pu8Data[14] << 4);
 		}
 
 		// Decode channel and value from packet
@@ -1000,10 +1079,10 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 		uint16 value = ((pu8Data[u8Len-2] & 0x000f)) + (pu8Data[u8Len-1] << 4);
 
 		// Set the extra channel
-		rxDemands[channel] = value;
+		RX.rxDemands[channel] = value;
 
 		// Set the output values
-		updateOutputs(rxDemands);
+		//updateOutputs(rxDemands);
 	}
 }
 
@@ -1033,7 +1112,7 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 	// Set handle so we can match confirmation to request
 	sMcpsReqRsp.uParam.sReqData.u8Handle = 1;
 
-	module_MAC_ExtAddr_s* macptr = pvAppApiGetMacAddrLocation();
+	module_MAC_ExtAddr_s* macptr = (module_MAC_ExtAddr_s*)pvAppApiGetMacAddrLocation();
 
 	if (broadcast != TRUE)
 	{
@@ -1144,6 +1223,7 @@ void txComsSendRoutedPacket(uint8* msg, uint8 len)
 void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 {
 	// Send via appropriate channel
+	//dbgPrintf("%d",toCon);
 	switch (toCon)
 	{
 	case CONTX:
@@ -1169,13 +1249,30 @@ void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon)
 	}
 	case CONONEWIRE:
 	{
-		if(rxHardware.oneWireEnabled==TRUE)
-		{
-			oneWireHandleRoutedMessage(msg, len, 0);
-		}
+		//if(rxHardware.oneWireEnabled==TRUE)
+		//{
+		//	oneWireHandleRoutedMessage(msg, len, 0);
+		//}
+		routedObject* dest=RX.ro.connections[toCon].obj;
+		(*dest->messageHandler)(dest,msg,len,RX.ro.connections[toCon].addr);
+
+		break;
+	}
+	case CONIMU:
+	{
+		routedObject* dest=RX.ro.connections[toCon].obj;
+		(*dest->messageHandler)(dest,msg,len,RX.ro.connections[toCon].addr);
+		break;
+	}
+	case CONPILOT:
+	{
+		routedObject* dest=RX.ro.connections[toCon].obj;
+		(*dest->messageHandler)(dest,msg,len,RX.ro.connections[toCon].addr);
 		break;
 	}
 	}
+
+
 }
 
 /****************************************************************************
@@ -1233,34 +1330,38 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 			*replyBody++ = 'R';
 			*replyBody++ = 'X';
 			// TODO - ???
+			replyLen = 4;
 			uint8 i;
-			for (i = 0; i < 3; i++)
+			for (i = 0; i < 5; i++)
 			{
 				if (i != fromCon)
+				{
 					*replyBody++ = i;
+					replyLen++;
+				}
 			}
-			replyLen = 6;
+
 			break;
 		}
 		case CMD_ENUM_GROUP :
-			replyLen=ccEnumGroupCommand(&parameterList, msgBody, replyBody);
+			replyLen=ccEnumGroupObjectCommand(&RX.ro, msgBody, replyBody);
 			break;
 		case CMD_SET_PARAM:
-			replyLen=ccSetParameter(&parameterList, msgBody, replyBody);
+			replyLen=ccSetObjectParameter(&RX.ro, msgBody, replyBody);
 			break;
 		case CMD_GET_PARAM:
-			replyLen=ccGetParameter(&parameterList, msgBody, replyBody);
+			replyLen=ccGetObjectParameter(&RX.ro, msgBody, replyBody);
 			break;
 		case 17: // Bind response
 		{
 			// If in bind mode set tx mac
-
+			dbgPrintf("br");
 			if(sEndDeviceData.eState != E_STATE_ASSOCIATED)
 			{
 				memcpy(&txMACl, msgBody+1, sizeof(txMACl));
 				memcpy(&txMACh, msgBody + 5, sizeof(txMACh));
 				//store binding
-				storeSettings();
+				storeSettings(&RX);
 				dbgPrintf("Rx Bound");
 			}
 			break;
@@ -1470,7 +1571,7 @@ void saveRadioSettings(store* s)
  *
  * NOTES:
  ****************************************************************************/
-void storeSettings()
+void storeSettings(void* context)
 {
 	store s;
 	store old;

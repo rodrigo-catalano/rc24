@@ -187,7 +187,7 @@ bool readNmeaGps(nmeaGpsData* data)
     else return FALSE;
 }
 
-void nmeaGpsParse(void* buff)
+void nmeaGpsParse(void* context,void* buff)
 {
   // return;
 
@@ -260,7 +260,7 @@ PRIVATE void nmea_HandleUartInterrupt(uint32 u32Device, uint32 u32ItemBitmap)
             {
                 //post sentence to app
                 nmeabuf[nmeabufidx++]=0;
-                if(nmeabuf!=NULL)swEventQueuePush(nmeaGpsParse,nmeabuf);
+                if(nmeabuf!=NULL)swEventQueuePush(nmeaGpsParse,NULL,nmeabuf);
                 nmeabuf=NULL;
             }
             else

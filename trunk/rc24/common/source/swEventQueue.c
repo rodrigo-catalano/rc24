@@ -37,6 +37,7 @@ in much the same way as the jennic AppQueueApi does for the predefined events.
 typedef struct
 {
     SW_EVENT_FN fn;
+    void* context;
     void* data;
 }swEventQueueItem;
 
@@ -45,7 +46,7 @@ swEventQueueItem swEventQueue[MAX_SW_EVENT_QUEUE];
 uint8 swEventQueueRead=0;
 uint8 swEventQueueWrite=0;
 
-bool swEventQueuePush(SW_EVENT_FN fn ,void* data)
+bool swEventQueuePush(SW_EVENT_FN fn ,void* context,void* data)
 {
     //called in interrupt context
     //check for space - should never make top=bottom by writing
@@ -54,6 +55,7 @@ bool swEventQueuePush(SW_EVENT_FN fn ,void* data)
     if(nextIdx==swEventQueueRead)return FALSE;
 
     swEventQueue[swEventQueueWrite].fn=fn;
+    swEventQueue[swEventQueueWrite].context=context;
     swEventQueue[swEventQueueWrite].data=data;
     swEventQueueWrite=nextIdx;
     return TRUE;
@@ -64,7 +66,7 @@ bool processSwEventQueue()
     if(swEventQueueRead==swEventQueueWrite)return FALSE;
     else
     {
-        (*swEventQueue[swEventQueueRead].fn)(swEventQueue[swEventQueueRead].data);
+        (*swEventQueue[swEventQueueRead].fn)(swEventQueue[swEventQueueRead].context,swEventQueue[swEventQueueRead].data);
         if(swEventQueueRead==MAX_SW_EVENT_QUEUE-1)swEventQueueRead=0;
         else swEventQueueRead++;
         return TRUE;
