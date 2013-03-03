@@ -112,7 +112,7 @@ void updatePcDisplay(void);
 
 void checkBattery(void);
 
-void storeSettings(void);
+void storeSettings(void* context);
 void loadSettings(void);
 void loadRadioSettings(store* s);
 void saveRadioSettings(store* s);
@@ -246,13 +246,13 @@ uint32 dbgmsgtimeend;
 //their command id is defined by position in the list
 ccParameter exposedParameters[] =
 {
-	{ "High Power Module", CC_BOOL, &useHighPowerModule, 0 ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "Default Input", CC_ENUMERATION, &inputMethod, 2 ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "Input Enum", CC_ENUMERATION_VALUES, defaultInputEnumValues,
+	{ "High Power Module", CC_BOOL, &useHighPowerModule,CC_NO_OFFSET, 0 ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "Default Input", CC_ENUMERATION, &inputMethod,CC_NO_OFFSET, 2 ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "Input Enum", CC_ENUMERATION_VALUES, defaultInputEnumValues,CC_NO_OFFSET,
 		sizeof(defaultInputEnumValues) / sizeof(defaultInputEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "TX Inputs", CC_INT32_ARRAY, txInputs, sizeof(txInputs) / sizeof(txInputs[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "TX Demands", CC_INT32_ARRAY, txDemands, sizeof(txDemands) / sizeof(txDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,CC_NO_GETTER,storeSettings }
+	{ "TX Inputs", CC_INT32_ARRAY, txInputs,CC_NO_OFFSET, sizeof(txInputs) / sizeof(txInputs[0]) ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "TX Demands", CC_INT32_ARRAY, txDemands,CC_NO_OFFSET, sizeof(txDemands) / sizeof(txDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,CC_NO_OFFSET,0,CC_NO_GETTER,storeSettings }
 };
 
 ccParameterList parameterList =
@@ -1420,7 +1420,7 @@ PRIVATE void vCreateAndSendFrame(void)
 	if (inputMethod == RAWINPUT)
 	{
 		// No input device or mixing, just raw
-		memcpy(txDemands, txInputs, sizeof(txDemands) / sizeof(txDemands[0]));
+		memcpy(txDemands, txInputs, sizeof(txDemands) );
 	}
 	else
 	{
@@ -1530,7 +1530,7 @@ void updateDisplay()
 	}
 	if(alarm)
 	{
-		vAHI_DioSetOutput(ALARM_PIN , 0);
+	//	vAHI_DioSetOutput(ALARM_PIN , 0);
 	}
 	else
 	{
@@ -1704,7 +1704,7 @@ void nextModel()
 void copyModel()
 {
 	//save any changes to current model
-	storeSettings();
+	storeSettings(NULL);
 
 	//simply leave current stuff in liveModel structure
 	liveModelIdx = numModels;
@@ -1712,7 +1712,7 @@ void copyModel()
 	strcpy(liveModel.name, "New Model");
 }
 
-void storeSettings()
+void storeSettings(void* context)
 {
 	//todo untested on JN5148
 	pcComsPrintf("Store settings\r\n");
@@ -1856,7 +1856,7 @@ void sleep()
 	vAHI_TimerDisable(E_AHI_TIMER_0);
 	vAHI_TimerDisable(E_AHI_TIMER_1);
 
-	storeSettings();
+	storeSettings(NULL);
 
 	//turn off power consuming bits
 	//lights

@@ -27,10 +27,18 @@ Copyright 2008 - 2009 © Alan Hopper
 uint32 codeUpdateLength;
 uint8 codeUpdateCrc;
 
-//todo cope with images bigger than 1 sector
-//on jn139 just write direct if no room for buffer
+/*
+On the jn5148 this copies the new code into the second flash sector
+and only erases the first sector once all code has been downloaded
+the code is then copied from sector 1 to sector 0.
+
+On the jn5139 there is no enough flash to buffer the code so it
+writes it as it goes along, if something goes wron during download
+the device will be left partly programmed and it will need reprogramming
+in bootloader mode
 
 
+*/
 
 uint8 startCodeUpdate(uint8* inMsg, uint8* outMsg)
 {
@@ -41,13 +49,12 @@ uint8 startCodeUpdate(uint8* inMsg, uint8* outMsg)
 	codeUpdateLength=0;
 	codeUpdateCrc=0;
 
-	bAHI_FlashEraseSector(1);
-
 	//send ack
 
 	outMsg[0]=0x91;
 	//todo store module type somewhere
-	#if (JENNIC_CHIP_FAMILY == JN514x)
+	bAHI_FlashEraseSector(1);
+#ifdef JN5148
 		outMsg[1]=6;
 		outMsg[2]='J';
 		outMsg[3]='N';
@@ -56,6 +63,7 @@ uint8 startCodeUpdate(uint8* inMsg, uint8* outMsg)
 		outMsg[6]='4';
 		outMsg[7]='8';
 	#else
+
 		outMsg[1]=6;
 		outMsg[2]='J';
 		outMsg[3]='N';
@@ -71,25 +79,33 @@ uint8 codeUpdateChunk(uint8* inMsg, uint8* outMsg)
 {
 	//todo check no chunks are missed and probably use bigger crc
 	uint32 sectorSize;
+	uint32 writeBase;
 	int i;
 
-	#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 		sectorSize=0x10000;
+		writeBase=sectorSize;
 	#else
 		sectorSize=0x8000;
+		writeBase=0;
 	#endif
 	uint8 len=inMsg[1];
 	for(i=2;i<len+2;i++)
 	{
 		codeUpdateCrc^=inMsg[i];
 	}
-	//copy in mac address
+	//copy in mac address and clear sectors on jn5139
 	if(codeUpdateLength==0)
 	{
 		bAHI_FullFlashRead(48,32,&inMsg[48+2]);
+	#if (JENNIC_CHIP_FAMILY == JN514x)
+
+	#else
+		bAHI_FlashEraseSector(0);
+	#endif
 	}
 	//write to flash buffer
-	bAHI_FullFlashProgram(sectorSize+codeUpdateLength,len,&inMsg[2]);
+	bAHI_FullFlashProgram(writeBase+codeUpdateLength,len,&inMsg[2]);
 
 	codeUpdateLength+=len;
 	//send ack
@@ -102,11 +118,14 @@ uint8 commitCodeUpdate(uint8* inMsg, uint8* outMsg)
     int rxbat=u16ReadADC(E_AHI_ADC_SRC_VOLT);//3838 4096 = 2.4*1.5 =3.6v
     rxbat=rxbat*360/4096;
     uint8 copyBuf[256];
+    uint32 maxUpload;
 
-	#if (JENNIC_CHIP_FAMILY == JN514x)
+#ifdef JN5148
 			sectorSize=0x10000;
+			maxUpload=sectorSize;
 	#else
 			sectorSize=0x8000;
+			maxUpload=2*sectorSize;
 	#endif
 
 
@@ -116,7 +135,7 @@ uint8 commitCodeUpdate(uint8* inMsg, uint8* outMsg)
 		outMsg[1]=3;
 		return 2;
 	}
-	if(codeUpdateLength>sectorSize)
+	if(codeUpdateLength>maxUpload)
 	{
 		outMsg[0]=0x95;//fail
 		outMsg[1]=2;
@@ -129,6 +148,7 @@ uint8 commitCodeUpdate(uint8* inMsg, uint8* outMsg)
 		return 2;
 	}
 
+#ifdef JN5148
 	//copy flash sector 1 to sector 0
 	bAHI_FlashEraseSector(0);
 	uint32 addr=0;
@@ -139,6 +159,8 @@ uint8 commitCodeUpdate(uint8* inMsg, uint8* outMsg)
 		bAHI_FullFlashProgram(addr,256,copyBuf);
 		addr+=256;
 	}
+#endif
+
 	vAHI_SwReset();
 	return 0;
 }

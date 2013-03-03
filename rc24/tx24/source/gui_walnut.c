@@ -866,7 +866,13 @@ void setModelDown(clickEventArgs* clickargs)
 }
 void bindModelClick(clickEventArgs* clickargs)
 {
+	//fix problem with rx that thinks it is already bound to this tx
+	//prevent any messages going to rx until bind request comes in
+	liveModel.rxMACh=0;
+	liveModel.rxMACl=0;
+
 	//goto fixed channel for binding
+
 	setHopMode(hoppingFixed);
 	eAppApiPlmeSet(PHY_PIB_ATTR_CURRENT_CHANNEL, getHopChannel(0));
 	//wait for bind request

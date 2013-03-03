@@ -19,7 +19,7 @@ Copyright 2008 - 2009 © Alan Hopper
 
 */
 
-typedef void (*SW_EVENT_FN)(void* data);
+typedef void (*SW_EVENT_FN)(void* context,void* data);
 
-bool swEventQueuePush(SW_EVENT_FN fn ,void* data);
+bool swEventQueuePush(SW_EVENT_FN fn ,void* context,void* data);
 bool processSwEventQueue(void);

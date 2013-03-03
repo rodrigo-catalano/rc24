@@ -23,14 +23,20 @@ Copyright 2008 - 2009 © Alan Hopper
 
 typedef struct
 {
+	routedObject ro; //first item so struct can be cast to a routedObject
     uint8  connector_id;
     uint8  comm_port;
     COMMS_CALLBACK_FN callback;
+    bool enabled;
+    uint32 oneWireCrcErrors;
+    uint32 oneWirePacketsSent;
+    uint32 oneWirePacketsReceived;
 
 }oneWireBus;
 
 extern uint32 pcComsCrcErrors;
 
+void createOneWireBus(oneWireBus* com);
 void initOneWireBus(oneWireBus* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb);
-void oneWireHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon);
+//void oneWireHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon);
 
