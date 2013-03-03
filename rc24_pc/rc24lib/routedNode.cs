@@ -71,5 +71,18 @@ namespace rc24
             }
             return null;
         }
+        public routedNode findNode(string name)
+        {
+            if (this.name == name)
+            {
+                return this;
+            }
+            foreach (var c in children.Values)
+            {
+                var r = c.findNode(name);
+                if (r != null) return r;
+            }
+            return null;
+        }
     }
 }

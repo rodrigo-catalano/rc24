@@ -36,6 +36,7 @@ namespace Serial
             System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.optionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.routedComsLoopTestToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.buttonConnect = new System.Windows.Forms.Button();
             this.buttonProgTx = new System.Windows.Forms.Button();
@@ -53,14 +54,18 @@ namespace Serial
             this.labelNodeName = new System.Windows.Forms.Label();
             this.buttonResetNode = new System.Windows.Forms.Button();
             this.buttonUploadCode = new System.Windows.Forms.Button();
+            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
+            this.openScriptToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.saveScriptToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.scriptEditor1 = new Serial.scriptEditor();
             this.lcd1 = new Serial.lcd();
-            this.routedComsLoopTestToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             menuStrip1 = new System.Windows.Forms.MenuStrip();
             toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             toolsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             menuStrip1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
@@ -75,7 +80,7 @@ namespace Serial
             menuStrip1.Location = new System.Drawing.Point(0, 0);
             menuStrip1.Name = "menuStrip1";
             menuStrip1.Padding = new System.Windows.Forms.Padding(8, 2, 0, 2);
-            menuStrip1.Size = new System.Drawing.Size(624, 26);
+            menuStrip1.Size = new System.Drawing.Size(1060, 28);
             menuStrip1.TabIndex = 17;
             menuStrip1.Text = "menuStrip1";
             // 
@@ -83,20 +88,23 @@ namespace Serial
             // 
             toolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             toolStripSeparator1,
-            this.exitToolStripMenuItem});
+            this.exitToolStripMenuItem,
+            this.toolStripSeparator3,
+            this.openScriptToolStripMenuItem,
+            this.saveScriptToolStripMenuItem});
             toolStripMenuItem1.Name = "toolStripMenuItem1";
-            toolStripMenuItem1.Size = new System.Drawing.Size(40, 22);
+            toolStripMenuItem1.Size = new System.Drawing.Size(44, 24);
             toolStripMenuItem1.Text = "File";
             // 
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new System.Drawing.Size(96, 6);
+            toolStripSeparator1.Size = new System.Drawing.Size(153, 6);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(99, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(156, 24);
             this.exitToolStripMenuItem.Text = "Exit";
             this.exitToolStripMenuItem.ToolTipText = "Exit the application";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.ExitToolStripMenuItemClick);
@@ -108,20 +116,27 @@ namespace Serial
             this.optionsToolStripMenuItem,
             this.routedComsLoopTestToolStripMenuItem});
             toolsToolStripMenuItem.Name = "toolsToolStripMenuItem";
-            toolsToolStripMenuItem.Size = new System.Drawing.Size(55, 22);
+            toolsToolStripMenuItem.Size = new System.Drawing.Size(57, 24);
             toolsToolStripMenuItem.Text = "Tools";
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new System.Drawing.Size(216, 6);
+            toolStripSeparator2.Size = new System.Drawing.Size(221, 6);
             // 
             // optionsToolStripMenuItem
             // 
             this.optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
-            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(219, 22);
+            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(224, 24);
             this.optionsToolStripMenuItem.Text = "Options...";
             this.optionsToolStripMenuItem.Click += new System.EventHandler(this.OptionsToolStripMenuItemClick);
+            // 
+            // routedComsLoopTestToolStripMenuItem
+            // 
+            this.routedComsLoopTestToolStripMenuItem.Name = "routedComsLoopTestToolStripMenuItem";
+            this.routedComsLoopTestToolStripMenuItem.Size = new System.Drawing.Size(224, 24);
+            this.routedComsLoopTestToolStripMenuItem.Text = "routed coms loop test";
+            this.routedComsLoopTestToolStripMenuItem.Click += new System.EventHandler(this.routedComsLoopTestToolStripMenuItem_Click);
             // 
             // textBox1
             // 
@@ -308,6 +323,37 @@ namespace Serial
             this.buttonUploadCode.Visible = false;
             this.buttonUploadCode.Click += new System.EventHandler(this.buttonUploadCode_Click);
             // 
+            // toolStripSeparator3
+            // 
+            this.toolStripSeparator3.Name = "toolStripSeparator3";
+            this.toolStripSeparator3.Size = new System.Drawing.Size(153, 6);
+            // 
+            // openScriptToolStripMenuItem
+            // 
+            this.openScriptToolStripMenuItem.Name = "openScriptToolStripMenuItem";
+            this.openScriptToolStripMenuItem.Size = new System.Drawing.Size(156, 24);
+            this.openScriptToolStripMenuItem.Text = "Open Script";
+            this.openScriptToolStripMenuItem.Click += new System.EventHandler(this.openScriptToolStripMenuItem_Click);
+            // 
+            // saveScriptToolStripMenuItem
+            // 
+            this.saveScriptToolStripMenuItem.Name = "saveScriptToolStripMenuItem";
+            this.saveScriptToolStripMenuItem.Size = new System.Drawing.Size(156, 24);
+            this.saveScriptToolStripMenuItem.Text = "Save Script";
+            this.saveScriptToolStripMenuItem.Click += new System.EventHandler(this.saveScriptToolStripMenuItem_Click);
+            // 
+            // scriptEditor1
+            // 
+            this.scriptEditor1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.scriptEditor1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.scriptEditor1.Location = new System.Drawing.Point(621, 28);
+            this.scriptEditor1.Name = "scriptEditor1";
+            this.scriptEditor1.PC = null;
+            this.scriptEditor1.Size = new System.Drawing.Size(439, 753);
+            this.scriptEditor1.source = "";
+            this.scriptEditor1.TabIndex = 18;
+            // 
             // lcd1
             // 
             this.lcd1.Location = new System.Drawing.Point(266, 39);
@@ -316,18 +362,12 @@ namespace Serial
             this.lcd1.Size = new System.Drawing.Size(341, 158);
             this.lcd1.TabIndex = 6;
             // 
-            // routedComsLoopTestToolStripMenuItem
-            // 
-            this.routedComsLoopTestToolStripMenuItem.Name = "routedComsLoopTestToolStripMenuItem";
-            this.routedComsLoopTestToolStripMenuItem.Size = new System.Drawing.Size(219, 22);
-            this.routedComsLoopTestToolStripMenuItem.Text = "routed coms loop test";
-            this.routedComsLoopTestToolStripMenuItem.Click += new System.EventHandler(this.routedComsLoopTestToolStripMenuItem_Click);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(624, 781);
+            this.ClientSize = new System.Drawing.Size(1060, 781);
+            this.Controls.Add(this.scriptEditor1);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.buttonrefreshTree);
             this.Controls.Add(this.buttonimageimport);
@@ -343,13 +383,14 @@ namespace Serial
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.Name = "Form1";
             this.Text = "RC24 Configuation";
-            this.Load += new System.EventHandler(this.Form1_Load);
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1FormClosing);
+            this.Load += new System.EventHandler(this.Form1_Load);
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();
             this.splitContainer1.Panel1.ResumeLayout(false);
             this.splitContainer1.Panel2.ResumeLayout(false);
             this.splitContainer1.Panel2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
             this.tableLayoutPanel1.ResumeLayout(false);
             this.tableLayoutPanel1.PerformLayout();
@@ -381,6 +422,10 @@ namespace Serial
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.FlowLayoutPanel commandPanel;
         private System.Windows.Forms.ToolStripMenuItem routedComsLoopTestToolStripMenuItem;
+        private scriptEditor scriptEditor1;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
+        private System.Windows.Forms.ToolStripMenuItem openScriptToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem saveScriptToolStripMenuItem;
     }
 }
 

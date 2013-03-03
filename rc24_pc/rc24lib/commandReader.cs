@@ -76,5 +76,17 @@ namespace rc24
         {
             return (ReadByte() == 0);
         }
+        public UInt32 Read7BitEncodedUInt32()
+        {
+            UInt32 ret=0;
+            byte b=0;
+            while(( b=ReadByte())>=128)
+            {
+                ret+=(UInt32)(b & 0x7f);
+                ret <<= 7;
+            }
+            ret += b;
+            return ret;
+        }
     }
 }

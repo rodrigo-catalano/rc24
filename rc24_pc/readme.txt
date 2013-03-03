@@ -2,7 +2,7 @@ Code to communicate with rc24 components from a pc
 
 All very rough and ready but useful for development
 
-Build with visual studio 2008 or visual c# express 2008
+Build with visual studio 2010 or visual c# express 2010
 
 rc24lib is a .net library to handle rc24 routed messages
 

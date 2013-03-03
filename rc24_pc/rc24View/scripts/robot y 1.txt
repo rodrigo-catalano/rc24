@@ -1,0 +1,85 @@
+num lfoot(TX tx,num x)
+{
+    tx.setTXInputs(0,x)
+}
+num lknee(TX tx,num x)
+{
+    tx.setTXInputs(1,x)
+}
+num lhip(TX tx,num x)
+{
+    tx.setTXInputs(2,x)
+}
+num rfoot(TX tx,num x)
+{
+    tx.setTXInputs(3,4095-x)
+}
+num rknee(TX tx,num x)
+{
+    tx.setTXInputs(4,4095-x)
+}
+num rhip(TX tx,num x)
+{
+    tx.setTXInputs(5,4095-x)
+}
+num rleg(TX tx, num hip, num knee,num ankle)
+{
+	rhip(tx,hip)
+	rknee(tx,knee)
+	rfoot(tx,ankle)
+}
+num lleg(TX tx, num hip, num knee,num ankle)
+{
+	lhip(tx,hip)
+	lknee(tx,knee)
+	lfoot(tx,ankle)
+}
+num stand(TX tx,)
+{
+	lfoot(tx,2000)
+	lknee(tx,2000)
+	lhip(tx,2000)
+	rfoot(tx,2000)
+	rknee(tx,2000)
+	rhip(tx,2000)
+}
+
+num crouch(TX tx,)
+{
+	lfoot(tx,2500)
+	lknee(tx,3000)
+	lhip(tx,2500)
+	rfoot(tx,2500)
+	rknee(tx,3000)
+	rhip(tx,2500)
+}
+num pause(num delay)
+{
+	while(delay>0,delay=delay-1)
+}
+num step(TX tx)
+{
+	rleg(tx,1900,3000,3000)
+	lleg(tx,2500,3000,2400)
+	pause(1000000)
+	rleg(tx,2600,3300,2500)
+	lleg(tx,1900,2500,2400)
+	pause(1000000)
+	rleg(tx,2500,3000,2400)
+	lleg(tx,1900,3000,3000)
+	pause(1000000)
+	rleg(tx,1900,2500,2400)
+	lleg(tx,2600,3300,2500)
+	pause(1000000)
+
+}
+num main(TX tx,RX rx, pilot pilot,IMU imu)
+{
+//	stand(tx)
+//	crouch(tx)
+	step(tx)
+	step(tx)
+	step(tx)
+
+	print(321)
+}

@@ -65,7 +65,7 @@ namespace rc24
         public Type type;
         public object Value;
         public byte TypeIdx;
-        public byte ArrayLen;
+        public UInt32 ArrayLen;
         public byte EnumListIdx;
         public routedNode Owner;
 
@@ -102,7 +102,7 @@ namespace rc24
 
 
         }
-        public ccParameter(int index, string name, byte typeIdx,byte arrayLen,routedNode owner)
+        public ccParameter(int index, string name, byte typeIdx,UInt32 arrayLen,routedNode owner)
         {
             Index = index;
             Name=name;
@@ -113,7 +113,7 @@ namespace rc24
         }
         public void parseValue(routedMessage msg)
         {
-            byte startIdx;
+            UInt32 startIdx;
             byte len;
             commandReader reader = msg.getReader();
             reader.ReadByte();
@@ -165,34 +165,40 @@ namespace rc24
                     throw (new NotImplementedException());
                     break;
                 case CC_UINT8_ARRAY:
-                    throw (new NotImplementedException());
+                    startIdx = reader.Read7BitEncodedUInt32();
+                    len = reader.ReadByte();
+                    if (Value == null) Value = new byte[ArrayLen];
+                    for (UInt32 i = startIdx; i < startIdx+len; i++) ((byte[])Value)[i] = reader.ReadByte();
                     break;
                 case CC_INT8_ARRAY:
-                    throw (new NotImplementedException());
+                    startIdx = reader.Read7BitEncodedUInt32();
+                    len = reader.ReadByte();
+                    if (Value == null) Value = new sbyte[ArrayLen];
+                    for (UInt32 i = startIdx; i < startIdx+len; i++) ((sbyte[])Value)[i] = reader.ReadSByte();
                     break;
                 case CC_UINT16_ARRAY:
-                    //TODO currently wrongly assume whole array is always sent
-                    //TODO send array total length with metadata
-                    startIdx = reader.ReadByte();
+                    startIdx = reader.Read7BitEncodedUInt32();
                     len = reader.ReadByte();
-                    UInt16[] valu16Array = new UInt16[len];
-                    for (int i = 0; i < len; i++) valu16Array[i] = reader.ReadUInt16();
-                    Value = valu16Array;
+                    if (Value == null) Value = new UInt16[ArrayLen];
+                    for (UInt32 i = startIdx; i < startIdx+len; i++) ((UInt16[])Value)[i] = reader.ReadUInt16();
                     break;
                 case CC_INT16_ARRAY:
-                    throw (new NotImplementedException());
+                    startIdx = reader.Read7BitEncodedUInt32();
+                    len = reader.ReadByte();
+                    if (Value == null) Value = new Int16[ArrayLen];
+                    for (UInt32 i = startIdx; i < startIdx+len; i++) ((Int16[])Value)[i] = reader.ReadInt16();
                     break;
                 case CC_UINT32_ARRAY:
-                    throw (new NotImplementedException());
-                    break;
-                case CC_INT32_ARRAY:
-                    //TODO currently wrongly assume whole array is always sent
-                    //TODO send array total length with metadata
-                    startIdx = reader.ReadByte();
+                    startIdx = reader.Read7BitEncodedUInt32();
                     len = reader.ReadByte();
-                    Int32[] val32Array = new Int32[len];
-                    for (int i = 0; i < len; i++) val32Array[i] = reader.ReadInt32();
-                    Value = val32Array;
+                    if (Value == null) Value = new UInt32[ArrayLen];
+                    for (UInt32 i = startIdx; i < startIdx+len; i++) ((UInt32[])Value)[i] = reader.ReadUInt32();
+                       break;
+                case CC_INT32_ARRAY:
+                    startIdx = reader.Read7BitEncodedUInt32();
+                    len = reader.ReadByte();
+                    if (Value == null) Value = new Int32[ArrayLen];
+                    for (UInt32 i = startIdx; i < startIdx+len; i++) ((Int32[])Value)[i] = reader.ReadInt32();
                     break;
                 case CC_UINT64_ARRAY:
                     throw (new NotImplementedException());
@@ -228,9 +234,11 @@ namespace rc24
                     break;
             }
         }
-        
-        
         public byte[] buildSetCmd()
+        {
+            return buildSetCmd(0, (byte) Math.Min(ArrayLen, 32));
+        }
+        public byte[] buildSetCmd(UInt32 start,byte len)
         {
             commandWriter cmd = new commandWriter();
             cmd.Write((byte)1);
@@ -268,38 +276,38 @@ namespace rc24
                     cmd.Write((Int64)Value);
                     break;
                 case CC_BOOL_ARRAY:
-                    cmd.Write((bool[])Value, 0, (byte)((bool[])Value).Length);
+                     throw (new NotImplementedException());
                     break;
                 case CC_STRING_ARRAY:
-                    cmd.Write((string[])Value, 0, (byte)((string[])Value).Length);
+                    throw (new NotImplementedException());
                     break;
                 case CC_UINT8_ARRAY:
-                    cmd.Write((byte[])Value, 0, (byte)((byte[])Value).Length);
+                    cmd.Write((byte[])Value, start, len);
                     break;
                 case CC_INT8_ARRAY:
-                    cmd.Write((sbyte[])Value, 0, (byte)((sbyte[])Value).Length);
+                    cmd.Write((sbyte[])Value, start, len);
                     break;
                 case CC_UINT16_ARRAY:
-                    cmd.Write((UInt16[])Value, 0, (byte)((UInt16[])Value).Length);
+                    cmd.Write((UInt16[])Value, start, len);
                     break;
                 case CC_INT16_ARRAY:
-                    cmd.Write((Int16[])Value, 0, (byte)((Int16[])Value).Length);
+                    cmd.Write((Int16[])Value, start, len);
                     break;
                 case
                     CC_UINT32_ARRAY:
-                    cmd.Write((UInt32[])Value, 0, (byte)((UInt32[])Value).Length);
+                    cmd.Write((UInt32[])Value, start, len);
                     break;
                 case
                     CC_INT32_ARRAY:
-                    cmd.Write((Int32[])Value, 0, (byte)((Int32[])Value).Length);
+                    cmd.Write((Int32[])Value, start, len);
                     break;
                 case
                     CC_UINT64_ARRAY:
-                    cmd.Write((UInt64[])Value, 0, (byte)((UInt64[])Value).Length);
+                    throw (new NotImplementedException());
                     break;
                 case
                     CC_INT64_ARRAY:
-                    cmd.Write((Int64[])Value, 0, (byte)((Int64[])Value).Length);
+                    throw (new NotImplementedException());
                     break;
                 case CC_FLOAT:
                     throw (new NotImplementedException());
@@ -333,7 +341,7 @@ namespace rc24
         {
             // TODO tidy. quick fix enumeration values are held in another ccParameter
             // with an index held in the ArrayLen field
-            ccParameter enumList=Owner.getParamByIdx(ArrayLen);
+            ccParameter enumList=Owner.getParamByIdx((byte)ArrayLen);
             if(enumList!=null && enumList.Value!=null)
             {
                 return ((string[])(enumList.Value)).ToList();

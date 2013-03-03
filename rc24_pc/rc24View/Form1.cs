@@ -31,6 +31,7 @@ using System.Threading;
 using System.Diagnostics;
 using rc24;
 
+
 /* This communicates with jennic modules through a logic level serial port.
  * The communications protocol is based on that used by jennic for their
  * flash programmer. See JN-AN-1007-Boot-Loader-Serial-Protocol-1v7.pdf
@@ -47,7 +48,7 @@ using rc24;
 
 namespace Serial
 {
-    public partial class Form1 : Form
+    public partial class Form1 : Form , routedConnector
     {
         private MyUserSettings mus;
         private SerialPort inp;
@@ -77,6 +78,7 @@ namespace Serial
         routedNode pcNode = new routedNode("PC");
         routedNode activeNode;
 
+        dynamic PC;
 
         CC_paramBinder nodeParameterList = new CC_paramBinder();
 
@@ -89,6 +91,15 @@ namespace Serial
 
             nodeParameterList.SetValue += new Flobbster.Windows.Forms.PropertySpecEventHandler(nodeParameterList_SetValue);
             propertyGrid1.SelectedObject = nodeParameterList;
+
+            //redirect console output to textbox
+            TextWriter _writer = new TextBoxStreamWriter(textBox1);
+            Console.SetOut(_writer);
+
+            PC = new routedObject() { node = pcNode, con = this };
+            
+            
+            scriptEditor1.PC = PC;
 
         }
 
@@ -446,6 +457,21 @@ namespace Serial
             //see if packet has reached its destination
             if (msg.Route.isForMe()) //no to addresses
             {
+                //see if anything is waiting for this response
+                //TODO clear expired subscriptions
+                
+                foreach (var subscription in pendingResponses)
+                {                    
+                    if (!subscription.expired && subscription.matches(msg))
+                    {
+                        subscription.handleReply(msg);
+                        if (subscription.singleShot) pendingResponses.Remove(subscription);
+                        return;
+                    }
+                }
+                //TODO make everything use subscription and remove the following
+                
+                
                 switch (msg.commandByte)
                 {
                     case 0x01: //enumerate response
@@ -555,6 +581,8 @@ namespace Serial
                         }
                     case 0x04://get parameter value response
                         {
+                            
+
                             commandReader reader = msg.getReader();
                             reader.ReadByte();
                             byte paramIdx = reader.ReadByte();
@@ -610,6 +638,18 @@ namespace Serial
                 pcSendRoutedMessage(buff, offset, (byte)len, to);
                 */
             }
+        }
+
+        //stack of objects waiting for responses
+
+        List<MessageSubscription> pendingResponses=new List<MessageSubscription>();
+
+        public void SendRoutedMessage(routedMessage message, byte toCon, MessageSubscription reply)
+        {
+            pendingResponses.Add(reply);
+
+            byte[] msg = message.toByteArray();
+            pcSendRoutedMessage(msg, 0, (byte)msg.Length, toCon);
         }
         void SendRoutedMessage(routedMessage message, byte toCon)
         {
@@ -668,6 +708,8 @@ namespace Serial
                     propertyGrid1.Refresh();
                     break;
                 default:
+                    buttonUploadCode.Visible = false;
+                    buttonResetNode.Visible = false;
                     getNodeParameters();
                     break;
             }
@@ -733,7 +775,7 @@ namespace Serial
                     byte pIdx = reader.ReadByte();
                     string pName = reader.ReadString();
                     byte pType = reader.ReadByte();
-                    byte pArrayLen = reader.ReadByte();
+                    UInt32 pArrayLen = reader.Read7BitEncodedUInt32();
 
                     try
                     {
@@ -774,7 +816,9 @@ namespace Serial
                         else
                         {
                             //get value
-                            routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx, 0x00, pArrayLen });
+                            //TODO decide what to do with big arrays - limit to first 32 elements for now
+
+                            routedMessage msgValReq = new routedMessage(activeNode.address, new byte[] { 0x03, pIdx, 0x00, (byte)(Math.Min(pArrayLen,32)) });
                             SendRoutedMessage(msgValReq, SERIALCON);
                         }
                     }
@@ -856,6 +900,26 @@ namespace Serial
         //    loopTest = new loopBackCommsTest(50,new route(new byte[]{16,0},0));
          //   loopTest = new loopBackCommsTest(500, new route(new byte[] { 0 }, 0));
             SendRoutedMessage(loopTest.sendNextCmd(null), SERIALCON);
+        }
+
+        private void openScriptToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "script files (*.txt)|*.txt|All files (*.*)|*.*";         
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                scriptEditor1.source= File.ReadAllText(ofd.FileName);
+            }            
+        }
+
+        private void saveScriptToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "script files (*.txt)|*.txt|All files (*.*)|*.*";
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                File.WriteAllText(sfd.FileName, scriptEditor1.source);
+            }
         }
     }
     
