@@ -18,14 +18,8 @@ num foo(num a, num b)
 }}}
 
 // is used to comment out the rest of a line
+There are no semicolons at the end of statements.
 
-The script is entered by the containing code calling the main function 
-{{{
-num main(TX tx,RX rx, pilot pilot,IMU imu)
-{
-
-}
-}}}
 
 methods are called the normal way
 
@@ -35,7 +29,6 @@ optionally the parameter names can be used
 
 c=foo(a: 10,b: 20)
 
-There are no semicolons at the end of statements.
 
 variables are strongly typed but do not need to be declared, their type is inferred.
 
@@ -72,6 +65,15 @@ while(test: a>1,
     a=a-1
 )
 }}}
+
+The script is entered by the containing code calling the main function 
+{{{
+num main(TX tx,RX rx, pilot pilot,IMU imu)
+{
+
+}
+}}}
+
 
 ==Operators==
 +
