@@ -65,12 +65,13 @@ while(a>1,
 This allows you to effectively create new control structures
 
 If you prefer you can use named parameters to write 
-
-'while(test: a>1,
+{{{
+while(test: a>1,
   do:
     print(a)
     a=a-1
-)'
+)
+}}}
 
 ==Operators==
 +
