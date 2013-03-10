@@ -76,7 +76,7 @@ while(test: a>1,
 ==Operators==
 +
 -
-'*'
+*
 /
 %
 
