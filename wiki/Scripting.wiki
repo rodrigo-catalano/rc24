@@ -80,7 +80,7 @@ num main(TX tx,RX rx, pilot pilot,IMU imu)
 -
 `*`
 /
-%
+`%`
 
 `==`
 !=
