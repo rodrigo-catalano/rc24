@@ -75,13 +75,13 @@ num main(TX tx,RX rx, pilot pilot,IMU imu)
 }}}
 
 Objects such as tx are the same objects you see when you browse the tree of connected devices on the pc program.  The properties of each of these objects are discovered at compile time by interrogating whatever is connected to the serial port. 
-This means that if you add extra exposed variables to the rx or tx bin files, they will be available in the script.  The parameter names are the same as on the pc display but with spaces removed and prefixed with get or set (for now).
+This means that if you add extra exposed variables to the rx or tx bin files, they will be available in the script.  The parameter names are the same as on the pc display but with spaces removed.
 
 To set the demand for channel 1 on the tramsmitter to be twice the channel 2 demand -
 
 {{{
-  a=tx.getTXInputs(1)
-  tx.setTXInputs(1,a*2)
+  a=tx.TXInputs[2]
+  tx.TXInputs[1]=a*2)
 }}}
 
 
