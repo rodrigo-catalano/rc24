@@ -919,7 +919,7 @@ void ccSetObjectParameterAsNum (routedObject* obj, int index,int arrayIndex,int 
 			break;
 		case CC_DOUBLE_ARRAY:
 			break;
-
+		default :return ;
 		}
 	}
 	else if(param->setFunction!=NULL)
@@ -978,7 +978,7 @@ int ccGetObjectParameterAsNum(routedObject* obj, int index,int arrayIndex)
 			return(int)*((int16*)paramPtr + arrayIndex);
 
 			break;
-
+		default :return 0;
 		}
 	}
 	else
@@ -987,5 +987,76 @@ int ccGetObjectParameterAsNum(routedObject* obj, int index,int arrayIndex)
 		//use get function ptr
 	}
 	return 0;
+}
+ccParameter* ccGetParameterPointer(routedObject* obj, int index)
+{
+	ccParameter* param = &obj->parameters.parameters[index];
+	return param;
+}
+int ccGetArrayItem(ccParameter* param, int index)
+{
+	void* paramPtr = param->paramPtr;
+
+	if (paramPtr != NULL)
+	{
+		switch (param->type)
+		{
+		case CC_UINT8_ARRAY:
+			return (int)*((uint8*)paramPtr + index);
+			break;
+		case CC_INT8_ARRAY:
+			return(int)*((int8*)paramPtr + index);
+			break;
+		case CC_UINT16_ARRAY:
+			return (int)*((uint16*)paramPtr + index);
+			break;
+		case CC_INT16_ARRAY:
+			return(int)*((int16*)paramPtr + index);
+			break;
+		case CC_UINT32_ARRAY:
+			return (int)*((uint32*)paramPtr + index);
+			break;
+		case CC_INT32_ARRAY:
+			return(int)*((int32*)paramPtr + index);
+			break;
+		default :return 0;
+		}
+	}
+	else
+	{
+		//TODO implement get/set function interface
+		//use get function ptr
+	}
+	return 0;
+
+}
+void ccSetArrayItem(ccParameter* param, int index,int value)
+{
+	void* paramPtr = param->paramPtr;
+	//relative access to structure member
+
+	if (paramPtr != NULL)
+	{
+		switch (param->type)
+		{
+		case CC_UINT16_ARRAY:
+			*((uint16*)paramPtr + index)=(uint16)value ;
+			break;
+		case CC_INT16_ARRAY:
+			*((int16*)paramPtr + index)=(int16)value ;
+			break;
+		case CC_UINT32_ARRAY:
+			*((uint32*)paramPtr + index)=(uint32)value ;
+			break;
+		case CC_INT32_ARRAY:
+			*((int32*)paramPtr + index)=(int32)value ;
+			break;
+		default :return ;
+		}
+	}
+	else if(param->setFunction!=NULL)
+	{
+
+	}
 }
 

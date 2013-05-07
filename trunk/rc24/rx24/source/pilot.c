@@ -16,9 +16,9 @@ ccParameter pilotParameters[]=
 {
 	//name,type,paramPtr,paramOffset,array length,set function,get function
 	{ "enabled",CC_BOOL,NULL,offsetof(Pilot,enabled),0,CC_NO_GETTER,CC_NO_SETTER},
-	{ "pgain_x",CC_INT32,NULL,offsetof(Pilot,pgain_x),0,CC_NO_GETTER,CC_NO_SETTER},
 	{ "script",CC_INT32_ARRAY,NULL,offsetof(Pilot,script),1024,CC_NO_GETTER,CC_NO_SETTER},
 	{ "stack",CC_INT32_ARRAY,NULL,offsetof(Pilot,stack),256,CC_NO_GETTER,CC_NO_SETTER},
+	{ "vars", CC_INT32_ARRAY,NULL,offsetof(Pilot,vars),40 ,CC_NO_GETTER,CC_NO_SETTER}
 
 };
 ccParameterList pilotParameterList=
@@ -50,44 +50,15 @@ void pilotDoMix(Pilot* pilot,Rx* rx,IMU* imu)
 {
 
 	if(!pilot->enabled)return defaultMix(pilot,rx,imu);
-	pilot->enabled=FALSE;
+//	pilot->enabled=FALSE;
 
 	//objects passed to script
-	pilot->stack[0]=0;//null pointer for tx object as not handled yet
-	pilot->stack[1]=(int)rx;
-	pilot->stack[2]=(int)pilot;
-	pilot->stack[3]=(int)imu;
+	pilot->stack[0]=0;//null pointer for pc object as not handled yet
+	pilot->stack[1]=0;//null pointer for tx object as not handled yet
+	pilot->stack[2]=(int)rx;
+	pilot->stack[3]=(int)pilot;
+	pilot->stack[4]=(int)imu;
 
-	run(pilot->script,pilot->stack,4);
-
-
-	return;
-
-	IMUreadSensors(imu);
-	//try pitch stablization on elevons on channels l&r
-	int l=2;
-	int r=3;
-	int i;
-	for(i=0;i<20;i++)
-	{
-		if(i!=l && i!=r)rx->rxMixedDemands[i]=rx->rxDemands[i];
-	}
-	//demanded pitch rate is mean of values
-	int demandedPitchRate=rx->rxDemands[l]+rx->rxDemands[r]-4096;
-	int actualPitchRate=imu->gyro_x;
-	int correction=(actualPitchRate-demandedPitchRate)*pilot->pgain_x/10000;
-
-
-
-	int ldemand=rx->rxDemands[l]+correction;
-	int rdemand=rx->rxDemands[r]+correction;
-
-	if(rx->rxMixedDemands[r]>=4095)rx->rxMixedDemands[r]=4095;
-	if(rx->rxMixedDemands[r]<0)rx->rxMixedDemands[r]=0;
-	if(rx->rxMixedDemands[l]>=4095)rx->rxMixedDemands[l]=4095;
-	if(rx->rxMixedDemands[l]<0)rx->rxMixedDemands[l]=0;
-
-
-	//TODO cap values and allow for unreceived channels
+	run(pilot->script,pilot->stack,5);
 
 }

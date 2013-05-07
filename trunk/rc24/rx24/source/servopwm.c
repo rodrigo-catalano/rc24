@@ -81,6 +81,7 @@
 #define SYNC_ACTION 4
 #define SERVO_CALC_ACTION 8
 #define APP_EVENT_ACTION 16
+#define MIX_EVENT_ACTION 32
 
 /****************************************************************************/
 /***        Type Definitions                                              ***/
@@ -161,6 +162,8 @@ PRIVATE uint32 errorCounter = 0; // Counter
 const uint32 maxLatency = 300; // Max recorded for jn5148 114 ticks with 16Mhz clock
 // So this could be reduced
 PRIVATE SW_EVENT_FN frameStartCallback = NULL;
+PRIVATE SW_EVENT_FN mixCallback = NULL;
+
 
 /****************************************************************************/
 /***        Exported Functions                                            ***/
@@ -204,11 +207,11 @@ PUBLIC void initServoPwm(const uint8 nServos)
 
 	// Calculate the maximum length of the output item queue
 	// TODO - fix magic numbers
-	maxServoQueueIdx = (nServos * 2) + 4;
+	maxServoQueueIdx = (nServos * 2) + 5;
 
 	// Calculate the sequence clock
 	// TODO - Explain, fix magic numbers
-	seqClock = maxSeqClock - (5000 * 16);
+	seqClock = maxSeqClock - (4000 * 16);
 
 	//use the audio reference low level interrupt handler
 	//this is vital for jitter free servo output as
@@ -250,6 +253,27 @@ PUBLIC void initServoPwm(const uint8 nServos)
 PUBLIC void setFrameCallback(SW_EVENT_FN callback)
 {
 	frameStartCallback = callback;
+}
+/****************************************************************************
+ *
+ * NAME: setFrameCallback
+ *
+ * DESCRIPTION: Set app context function called shortly before servo output
+ *
+ * PARAMETERS:      Name            RW  Usage
+ * 					callback		W	callback function
+ *
+ * RETURNS:
+ * 	None.
+ *
+ * NOTES:
+ * 	None.
+ *
+ ****************************************************************************/
+
+PUBLIC void setMixCallback(SW_EVENT_FN callback)
+{
+	mixCallback = callback;
 }
 
 /****************************************************************************
@@ -568,7 +592,9 @@ PRIVATE void buildServoQueue()
 
 	//  repeated the length of the hop sequence
 
+
 	//  0ms channel change
+	//  4ms run rx mixer
 	//  5ms channel change
 
 	//  calc servo times or copy across from non interrupt code?
@@ -592,12 +618,20 @@ PRIVATE void buildServoQueue()
 
 	//vPrintf("#%d %d#",sorted[0],sorted[1]);
 	//0 ms
-	servoQueue[i].action_time = 5000 * 16;
+	servoQueue[i].action_time = 4000 * 16;
 	servoQueue[i].on = 0;
 	servoQueue[i].off = 0;
 	servoQueue[i].action_type = HOP_ACTION | APP_EVENT_ACTION;
-
 	i++;
+
+	// 4ms
+
+	servoQueue[i].action_time = 1000 * 16;
+	servoQueue[i].on = 0;
+	servoQueue[i].off = 0;
+	servoQueue[i].action_type = MIX_EVENT_ACTION;
+	i++;
+
 	// 5ms
 	servoQueue[i].action_time = 1000 * 16;
 	servoQueue[i].on = 0;
@@ -807,6 +841,13 @@ PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap)
 		//send event to app context
 		if (frameStartCallback != NULL)
 			swEventQueuePush(frameStartCallback,NULL, NULL);
+
+	}
+	if ((servoQueue[servoQueueIdx].action_type & MIX_EVENT_ACTION) != 0)
+	{
+			//send event to app context
+			if (mixCallback != NULL)
+				swEventQueuePush(mixCallback,NULL, NULL);
 
 	}
 	servoQueueIdx++;

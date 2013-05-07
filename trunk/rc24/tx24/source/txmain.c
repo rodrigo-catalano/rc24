@@ -78,6 +78,7 @@ typedef struct
 	uint8 u8RxPacketSeqNb;
 	uint16 u16PanId;
 	uint8 u8ChannelSeqNo;
+	int16 lowPrioritySentSeq;
 
 } tsCoordinatorData;
 
@@ -174,6 +175,13 @@ int currentAuxChannel = 4;
 
 int activeAuxChannel = 4;
 
+int radioOverflows=0;
+uint32 radioRoutedPacketsTxd=0;
+uint32 radioRoutedPacketsTxdAcked=0;
+uint32 radioRoutedChunksTxd=0;
+
+uint32 radioRoutedPacketsRxd=0;
+
 
 // only keep one model in ram at a time to avoid artificial limits on number
 // of models
@@ -252,7 +260,13 @@ ccParameter exposedParameters[] =
 		sizeof(defaultInputEnumValues) / sizeof(defaultInputEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER},
 	{ "TX Inputs", CC_INT32_ARRAY, txInputs,CC_NO_OFFSET, sizeof(txInputs) / sizeof(txInputs[0]) ,CC_NO_GETTER,CC_NO_SETTER},
 	{ "TX Demands", CC_INT32_ARRAY, txDemands,CC_NO_OFFSET, sizeof(txDemands) / sizeof(txDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,CC_NO_OFFSET,0,CC_NO_GETTER,storeSettings }
+	{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,CC_NO_OFFSET,0,CC_NO_GETTER,storeSettings },
+	{ "radio Overflows", CC_INT32,&radioOverflows,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER},
+	{ "radioRoutedPacketsRxd",CC_UINT32,&radioRoutedPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+	{ "radioRoutedPacketsTxd",CC_UINT32,&radioRoutedPacketsTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
+	{ "radioRoutedPacketsTxdAcked",CC_UINT32,&radioRoutedPacketsTxdAcked,0,0,CC_NO_GETTER,CC_NO_SETTER},
+	{ "radioRoutedChunksTxd",CC_UINT32,&radioRoutedChunksTxd,0,0,CC_NO_GETTER,CC_NO_SETTER}
+
 };
 
 ccParameterList parameterList =
@@ -558,6 +572,7 @@ PRIVATE void vInitSystem(void)
 	sCoordinatorData.u8TxPacketSeqNb = 0;
 	sCoordinatorData.u8RxPacketSeqNb = 0;
 	sCoordinatorData.u16NbrEndDevices = 0;
+	sCoordinatorData.lowPrioritySentSeq=-1;
 
 	sCoordinatorData.u8ChannelSeqNo = 0;
 
@@ -790,7 +805,15 @@ PRIVATE void vHandleMcpsDataDcfm(MAC_McpsDcfmInd_s *psMcpsInd)
 			ackedPackets++;
 			channelAckCounter[sCoordinatorData.u8Channel - 11]--;
 
-			ackLowPriorityData();
+			if(sCoordinatorData.lowPrioritySentSeq==sCoordinatorData.u8TxPacketSeqNb)
+			{
+				sCoordinatorData.lowPrioritySentSeq=-1;
+				if(ackLowPriorityData()==TRUE)
+				{
+					//log the number of full messages acked
+					radioRoutedPacketsTxdAcked++;
+				}
+			}
 			//vPrintf("%d ",RetryNo);
 		}
 		else
@@ -866,6 +889,10 @@ void txHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 {
 	uint8 replyBuf[256];
 
+	if(fromCon==CONRX)
+	{
+		radioRoutedPacketsRxd++;
+	}
 	//see if packet has reached its destination
 	if (rmIsMessageForMe(msg) == TRUE)
 	{
@@ -978,7 +1005,12 @@ void txHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 }
 void rxComsSendRoutedPacket(uint8* msg, int offset, uint8 len)
 {
-	queueLowPriorityData(msg + offset, len);
+	if(queueLowPriorityData(msg + offset, len)==FALSE)
+	{
+		radioOverflows++;
+	}
+	else radioRoutedPacketsTxd++;
+
 }
 
 /****************************************************************************
@@ -1248,7 +1280,13 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, uint16 u16DestAdr)
 		pu8Payload[i] = *pu8Data++;
 	}
 
+
 	i += appendLowPriorityData(&pu8Payload[i], 32);
+	if(i>u8Len + 1)
+	{
+		radioRoutedChunksTxd+=i-(u8Len + 1);
+		sCoordinatorData.lowPrioritySentSeq=sCoordinatorData.u8TxPacketSeqNb;
+	}
 
 	/* Set frame length */
 	sMcpsReqRsp.uParam.sReqData.sFrame.u8SduLength = i;
