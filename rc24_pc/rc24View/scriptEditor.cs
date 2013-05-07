@@ -167,15 +167,15 @@ num loop(num times, code do)
           //  var p = new parser(fullSource);
 
             astNode tree;
-//            try
-  //          {
+            try
+            {
                 tree = p.parse();
-    //        }
-      //      catch (Exception parseErr)
-        //    {
-          //      MessageBox.Show("Parse Error " + parseErr.Message + " Line " + p.line);
-            //    return;
-            //}
+            }
+            catch (Exception parseErr)
+            {
+                MessageBox.Show("Parse Error " + parseErr.Message + " Line " + p.line);
+                return;
+            }
 
             if (debug) displaySyntaxTree(tree);
             compiler.fixDotNotation(tree);
@@ -204,17 +204,17 @@ num loop(num times, code do)
             buildExternalFunctions(PC, ExternalFunctions);
 
             int[] bbc;
-//            try
-//            {
+            try
+            {
                 bbc = comp.compile(tree, ExternalFunctions);
-//            }
-  //          catch (Exception ce)
-    //        {
-      //         string msg = "Compilation Error " + ce.Message;
-        //       foreach (var k in ce.Data.Keys) msg += " " + k.ToString() + " " + ce.Data[k].ToString();
-          //     MessageBox.Show(msg);
-            //   return;
-          // }
+            }
+            catch (Exception ce)
+            {
+               string msg = "Compilation Error " + ce.Message;
+               foreach (var k in ce.Data.Keys) msg += " " + k.ToString() + " " + ce.Data[k].ToString();
+               MessageBox.Show(msg);
+               return;
+           }
 
 
             if (debug)
