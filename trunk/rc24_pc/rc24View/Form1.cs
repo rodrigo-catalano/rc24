@@ -79,6 +79,7 @@ namespace Serial
         routedNode activeNode;
 
         dynamic PC;
+        bool logComms = false;
 
         CC_paramBinder nodeParameterList = new CC_paramBinder();
 
@@ -144,6 +145,7 @@ namespace Serial
 
         void inp_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
+
             int i = inp.BytesToRead;
             // packet timeout 
             DateTime t = DateTime.Now;
@@ -323,6 +325,7 @@ namespace Serial
                 }
                 if (cmd == 0xff)
                 {
+                    logMessage(buff, 0, (byte)buff.Length, ">");
                     pcHandleRoutedMessage(buff, 2, len - 2, 0);
                 }
                 else
@@ -658,8 +661,11 @@ namespace Serial
         }
         void pcSendRoutedMessage(byte[] buff, int offset, byte len, byte toCon)
         {
+            logMessage(buff, offset, len,"<");
+               
             switch (toCon)
             {
+                
                 case 0: JennicPacket.Write(inp, buff, offset, len, 0xff); break;
 //                case 0: JennicPacket.Write(inp, buff, offset, len, 0xfe); break;
             }
@@ -919,6 +925,19 @@ namespace Serial
             if (sfd.ShowDialog() == DialogResult.OK)
             {
                 File.WriteAllText(sfd.FileName, scriptEditor1.source);
+            }
+        }
+        private void logMessage(byte[] buff,int offset,byte len,string prefix)
+        {
+            if (logComms)
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append("\r\n"+prefix);
+                for (int i = 0; i < len; i++)
+                {
+                    sb.Append(" " + buff[offset + i].ToString());
+                }
+                SetText(sb.ToString());
             }
         }
     }

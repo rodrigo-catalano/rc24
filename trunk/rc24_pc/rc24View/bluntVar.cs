@@ -10,7 +10,10 @@ namespace bluntsharp
         public int offset;
         public vtype type;
         public String objectType;
-        
+        public string typename;
+        public bluntVar()
+        {
+        }
         public bluntVar(int Offset, vtype Type,String ObjectType)
         {
             offset = Offset;

@@ -11,8 +11,20 @@ namespace rc24
     public class routedObject : DynamicObject
     {
         public static int defaultTimeout = 2000;
-                        
-        public routedNode node{get;set;}
+        private routedNode _node;                
+        public routedNode node
+        {
+            get
+            {
+                return _node;
+            }
+            set
+            {
+                _node = value;
+                _node.OwnerObj = this;
+            }
+        }
+
         public routedConnector con { get; set; }
 
         public routedObject findNode(string name)
@@ -63,6 +75,38 @@ namespace rc24
             return param.Value;
           
         }
+        public int getItemAsInt(int paramIdx)
+        {
+            ccParameter param = node.getParamByIdx(paramIdx);
+            getProperty(param, 0,0);
+            switch (param.TypeIdx)
+            {
+                case ccParameter.CC_BOOL: return (bool)param.Value?1:0;
+                case ccParameter.CC_UINT8: return (int)((byte)param.Value);
+                case ccParameter.CC_INT8: return (int)((sbyte)param.Value);
+                case ccParameter.CC_UINT16: return (int)((UInt16)param.Value);
+                case ccParameter.CC_INT16: return (int)((Int16)param.Value);
+                case ccParameter.CC_UINT32: return (int)((UInt32)param.Value);
+                case ccParameter.CC_INT32: return (int)((Int32)param.Value);
+                default: throw new Exception(" routed object getItemAsInt type not handled " + param.TypeIdx);
+            }
+        }
+        public void setItemFromInt(int paramIdx,int value)
+        {
+            ccParameter param = node.getParamByIdx(paramIdx);
+            switch (param.TypeIdx)
+            {
+                case ccParameter.CC_BOOL: param.Value = value==0?false:true; break;
+                case ccParameter.CC_UINT8: param.Value = (byte)value; break;
+                case ccParameter.CC_INT8: param.Value = (sbyte)value; break;
+                case ccParameter.CC_UINT16: param.Value = (UInt16)value; break;
+                case ccParameter.CC_INT16: param.Value= (Int16)value; break;
+                case ccParameter.CC_UINT32: param.Value = (UInt32)value; break;
+                case ccParameter.CC_INT32: param.Value = (Int32)value; break;
+                default: throw new Exception(" routed object setItemFromInt type not handled " + param.TypeIdx);
+            }
+            setProperty(param, 0,0);
+        }
         public int getArrayItemAsInt(int paramIdx,int arrayIdx)
         {
             ccParameter param=node.getParamByIdx(paramIdx);
@@ -77,7 +121,7 @@ namespace rc24
                 case ccParameter.CC_INT16_ARRAY: return (int)((Int16[])param.Value)[arrayIdx];
                 case ccParameter.CC_UINT32_ARRAY: return (int)((UInt32[])param.Value)[arrayIdx];
                 case ccParameter.CC_INT32_ARRAY: return (int)((Int32[])param.Value)[arrayIdx];
-                default: throw new Exception(" routed object getArrayItemFromInt type not handled " + param.TypeIdx);
+                default: throw new Exception(" routed object getArrayItemAsInt type not handled " + param.TypeIdx);
             }
          }
         public void setArrayItemFromInt(int paramIdx, int arrayIdx,int value)

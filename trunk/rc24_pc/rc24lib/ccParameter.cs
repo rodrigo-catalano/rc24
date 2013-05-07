@@ -68,7 +68,7 @@ namespace rc24
         public UInt32 ArrayLen;
         public byte EnumListIdx;
         public routedNode Owner;
-
+        
         static ccParameter()
         {
             types = new List<Type>();
@@ -349,6 +349,19 @@ namespace rc24
             else 
             {
                 return new List<string>();
+            }
+        }
+        public int getArrayItemAsInt(int idx)
+        {
+            switch (TypeIdx)
+            {
+                case ccParameter.CC_UINT8_ARRAY: return (int)((byte[])Value)[idx];
+                case ccParameter.CC_INT8_ARRAY: return (int)((sbyte[])Value)[idx];
+                case ccParameter.CC_UINT16_ARRAY: return (int)((UInt16[])Value)[idx];
+                case ccParameter.CC_INT16_ARRAY: return (int)((Int16[])Value)[idx];
+                case ccParameter.CC_UINT32_ARRAY: return (int)((UInt32[])Value)[idx];
+                case ccParameter.CC_INT32_ARRAY: return (int)((Int32[])Value)[idx];
+                default: throw new Exception(" ccparameter getArrayItemFromInt type not handled " + TypeIdx);
             }
         }
     }

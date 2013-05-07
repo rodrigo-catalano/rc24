@@ -49,6 +49,7 @@
             this.textBoxCode.AcceptsReturn = true;
             this.textBoxCode.AcceptsTab = true;
             this.textBoxCode.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.textBoxCode.Font = new System.Drawing.Font("Consolas", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.textBoxCode.Location = new System.Drawing.Point(0, 31);
             this.textBoxCode.Multiline = true;
             this.textBoxCode.Name = "textBoxCode";
