@@ -29,6 +29,7 @@ namespace rc24
         private route _route;
         public string name;
         public int parameterCount = 0;
+        public routedObject OwnerObj;
 
         public Dictionary<byte,routedNode> children=new Dictionary<byte,routedNode>();
         //interfaces

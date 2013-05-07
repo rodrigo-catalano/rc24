@@ -1,3 +1,8 @@
+num square(num a)
+{
+    return(a*a)
+}
+
 num foo(num a,num b)
 {
     ret=a
@@ -12,30 +17,69 @@ num factorial(num a)
    return(a)
 }
 
-num main(TX tx,RX rx, pilot pilot,IMU imu)
+num main(PC pc,TX tx,RX rx, pilot pilot,IMU imu)
 {   
-// test assign
+    print("Start Test")
+
+    print(10)
+    // test assign
     a=6
     b=3
-//test function call
+
+    print("3 x 6 = ")
+    print(a*b)
+
+    print("while loop ")
+    while(a>0,print(a*2) a=a-1)
+
+    a=6
+    //simple function call
+    print(" square(6)")
+    print(square(a))
+
+
+    //test function call
     print(foo(a,b))
 
-// test recursion 
-print( factorial(a))
+    // test recursion 
+    print("factorial(6)")
+    print( factorial(a))
 
-//test forward reference TODO fix
-//print(bar(100))
+    //test forward reference
+    print(bar(100))
 
-//for loop
+    //for loop
 
-for(x=1,x<=12,x=x+1,print(3*x))
+    for(x=1,x<=12,x=x+1,print(3*x))
 
-if(a>b,print(a))
-if(a<=b,print(b))
+    if(a>b,print(a))
+    if(a<=b,print(b))
 
-ifelse(a>b,print(a),print(b))
+    if(a>b,print(a),print(b))
 
-while(a>0,print(a*2) a=a-1)
+    if(a>b,
+        then: print(a),
+        else: print(b)
+    )
+
+
+    print("10*20+6-5*6/20%100")
+    print(10*20+6-5*6/20%100)
+    print("abs(-234)")
+    print(abs(-234))
+    print("sign(-234)")
+    print(sign(-234))
+    print("min(-234,67)")
+    print(min(-234,67))
+    print("max(-234,67)")
+    print(max(-234,67))
+    print("limit(-234,10,100)")
+    print(limit(-234,10,100))
+
+	print("test multiline text 
+printing and ""quotes""")
+
+    print("End of test")
 
 }
 num bar(num a)

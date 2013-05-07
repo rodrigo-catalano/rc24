@@ -14,6 +14,12 @@ namespace bluntsharp
 	public int localStackUsage;
 	public bool retEmptyStack=false;
 	public int opLen=1;//length of opcode
+    public fType functionType = fType.NATIVE;
+    public List<int> callees = new List<int>();
+    public Dictionary<String, bluntLabel> labels = new Dictionary<string, bluntLabel>();
+    public Dictionary<String, bluntVar> locals = new Dictionary<string, bluntVar>();
+    //public List<int> constantParams;
+
 	public bluntFunction(String Name,bluntParam[] Params,int OpCode)
 	{
 		name=Name;
@@ -45,5 +51,27 @@ namespace bluntsharp
 		retEmptyStack=EmptyStack;
 		opLen=len;
 	}
+    public string mangledName
+    {
+        get
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append(name);
+            if (fparams != null && fparams.Length > 0)
+            {
+                sb.Append("_");
+                foreach (var p in fparams) sb.AppendFormat("_{0}", p.typeName);
+            }
+            return sb.ToString();
+        }
+    }
 }
+    public class functionList : Dictionary<String, bluntFunction>
+    {
+        public void Add(bluntFunction function)
+        {
+            Add(function.mangledName, function);
+        }
+
+    }
 }

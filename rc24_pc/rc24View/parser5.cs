@@ -5,20 +5,13 @@ using System.Text;
 
 namespace bluntsharp
 {
-/*
-num foo( num a, num b)
-{
-    
-  return (a+b)
-}
-*/
-
-    class parser
+    class parser5
     {
         Dictionary<string, Op> ops = new Dictionary<string, Op>();
         public int line = 1;
         string src;
-        public parser(string source)
+        List<astNode> tokens;
+        public parser5(string source)
         {
             ops.Add("=", new Op() { precidence = 1, leftAssociative = false, nParams = 2 });
             
@@ -40,22 +33,16 @@ num foo( num a, num b)
             ops.Add(".", new Op() { precidence = 20, leftAssociative = true, nParams = 2 });
             ops.Add("neg", new Op() { precidence = 10, leftAssociative = false, nParams = 1 });
           
-            
-            //  ops.Add("[", new Op() { precidence = 10, leftAssociative = false, nParams = 1 });
-          //  ops.Add("[", new Op() { precidence = 10, leftAssociative = false, nParams = 1 });
-          //  ops.Add("]=", new Op() { precidence = 10, leftAssociative = false, nParams = 2 });
-             
-            //crude array support - TODO stop replacement in string literals
-            src = source.Replace("[",".getArrayItem(").Replace("]",")");
+            src = source;
         }
         public astNode parse()
         {
             astNode cu = new astNode() { type = "CompilationUnit" };
+            tokens=getTokens();
             int idx = 0;
-            while (idx < src.Length)
+            while (idx < tokens.Count)
             {
                 cu.children.Add(parseFunctionDecl(ref idx));
-                idx=eatSpace(idx);
             }
             setParents(cu);
             return cu;
@@ -68,42 +55,41 @@ num foo( num a, num b)
                 setParents(child);
             }
         }
-        private astNode parseFunctionDecl(ref int idx)
+        private List<astNode> getTokens()
         {
-            astNode fndef = new astNode() { type = "FN DECL" };
-            Token t = getToken(ref idx);
-            if (t.type != Token.ttype.ID) throw new Exception("return type expected for function declaration");
-            fndef.children.Add(new astNode() { type = "ID", name = t.name });
-            t = getToken(ref idx);
-            fndef.name = t.name;
-            t = getToken(ref idx);
-            if (t.name != "(") throw new Exception("( expected for function declaration");
-
-            while ((t = getToken(ref idx)).name != ")")
+            List<astNode>tokens=new List<astNode>();
+            int idx=0;
+            astNode n;
+            while((n=getToken(ref idx))!=null)
             {
-                if(t.name!=",") fndef.children.Add(new astNode() { type = "ID", name = t.name });
+                if(n.name=="[")
+                {
+                    tokens.Add(new astNode(){name=".",type="OP",line=n.line});
+                    tokens.Add(new astNode(){name="getArrayItem",type="FN",line=n.line});
+                    tokens.Add(new astNode(){name="(",type="OP",line=n.line});
+                }
+                else
+                {
+                    if(n.name=="]")n.name=")";
+                    tokens.Add(n);
+                }
             }
-            t = getToken(ref idx);
-            if (t.name != "{") throw new Exception("{ expected for function body declaration");
-
-            // now create node for fn body
-            astNode fnBody = toRPN(ref idx);
-            fndef.children.Add(fnBody);
-            
-            return fndef;
+            return tokens;
         }
-        private Token peekToken(int idx)
+        private string peekChar(int idx)
         {
-            int sidx = idx;
-            return getToken(ref sidx);
-        }
-
-        private Token getToken(ref int idx)
-        {
-            Token ret=new Token();
-            StringBuilder  token = new StringBuilder();
             idx = eatSpace(idx);
-            if (idx == src.Length) return new Token() { type = Token.ttype.EOF };
+            if (idx == src.Length) return "";
+            return src[idx].ToString();
+           
+        }
+        private astNode getToken(ref int idx)
+        {
+            idx = eatSpace(idx);
+            if (idx == src.Length) return null;
+            var ret=new astNode();
+            StringBuilder  token = new StringBuilder();
+           
             ret.line = line;
             char c = src[idx];
 
@@ -115,19 +101,19 @@ num foo( num a, num b)
                     idx++;
                     c = src[idx];
                 }
-                if (peekToken(idx).name == "#")
+                if (c == '#')
                 {
-                    ret.type = Token.ttype.LABEL;
+                    ret.type = "LABEL";
                     idx++;
                 }
-                else if (peekToken(idx).name == ":")
+                else if (c == ':')
                 {
-                    ret.type = Token.ttype.PARAMNAME;
+                    ret.type = "PARAMNAME";
                     idx++;
                 }
                 
-                else if (peekToken(idx).name == "(") ret.type = Token.ttype.FUNCTION;
-                else ret.type = Token.ttype.ID;
+                else if (peekChar(idx) == "(") ret.type = "FN";
+                else ret.type = "ID";
             }
             else if (c >= '0' && c <= '9')
             {
@@ -137,25 +123,31 @@ num foo( num a, num b)
                     idx++;
                     c = src[idx];
                 }
-                ret.type = Token.ttype.NUMBER;
-                
+                ret.type = "CONST";
+                ret.val = token.ToString();
             }
             else if (c == '"')
             {
+                //strings can cross lines and " is escaped by "" rather like c# @"
+                //maybe strip whitespace up to tab position of first line to keep source indented
                 idx++;
                 c = src[idx];
-                while (c != '"')
+                while (true)
                 {
+                    if(c=='"')
+                    {
+                        if(src[++idx]!='"')break;
+                    }
                     token.Append(c);
                     idx++;
                     c = src[idx];
                 }
-                ret.type = Token.ttype.STRING;
-                idx++;
-            }
+                ret.type = "STRING";
+                ret.val = token.ToString();
+             }
             else
             {
-                ret.type = Token.ttype.OP;
+                ret.type = "OP";
                 //for now do simple ops
                 token.Append(c);
                 string dt=null;
@@ -165,12 +157,10 @@ num foo( num a, num b)
                 }
                 if(dt!=null && ops.ContainsKey(dt))
                 {
-                    ret.op = ops[dt];
                     token.Append(src[++idx]);
                 }
                 else if (ops.ContainsKey(token.ToString()))
                 {
-                    ret.op = ops[token.ToString()];
                 }
                 idx++;
             }
@@ -203,14 +193,38 @@ num foo( num a, num b)
             }
             return idx;
         }
-
-        private void popFunction(Stack<astNode> outp, Stack<Token> opStack)
+        private astNode parseFunctionDecl(ref int idx)
         {
-            Token t = opStack.Pop();
-            astNode n = new astNode() { name = t.name, type = "FN",line=t.line };
-            if (t.type == Token.ttype.OP)
+            astNode fndef = new astNode() { type = "FN DECL" };
+            astNode t = tokens[idx++];
+            if (t.type !="ID") throw new Exception("return type expected for function declaration");
+            fndef.children.Add(new astNode() { type = "ID", name = t.name });
+            t = tokens[idx++];
+            fndef.name = t.name;
+            t = tokens[idx++];
+            if (t.name != "(") throw new Exception("( expected for function declaration");
+
+            while ((t = tokens[idx++]).name != ")")
             {
-                for (int i = 0; i < t.op.nParams; i++)
+                if(t.name!=",") fndef.children.Add(new astNode() { type = "ID", name = t.name });
+            }
+            t = tokens[idx++];
+            if (t.name != "{") throw new Exception("{ expected for function body declaration");
+
+            // now create node for fn body
+            astNode fnBody = toTree(ref idx);
+            fndef.children.Add(fnBody);
+            
+            return fndef;
+        }
+        private void popFunction(Stack<astNode> outp, Stack<astNode> opStack)
+        {
+            astNode t = opStack.Pop();
+     //       if (t.type == "OP" && t.name == "") return;
+            astNode n = new astNode() { name = t.name, type = "FN",line=t.line };
+            if (t.type == "OP")
+            {
+                for (int i = 0; i < ops[t.name].nParams; i++)
                 {
                     n.children.Insert(0, outp.Pop());
                 }
@@ -239,26 +253,25 @@ num foo( num a, num b)
            
         }
         
-        private astNode toRPN(ref int idx)
+        private astNode toTree(ref int idx)
         {
             // shunting yard
             Stack<astNode> outp = new Stack<astNode>();
-            Stack<Token> opStack = new Stack<Token>();
+            Stack<astNode> opStack = new Stack<astNode>();
 
-            Token sentinel = new Token() { type = Token.ttype.OP, name=""};
-            sentinel.op = new Op() { precidence = 0 };
+            astNode sentinel = new astNode() { type = "OP", name=""};
             opStack.Push(sentinel);
 
-            Token top;
-            Token t = null;
-            Token last;
+            astNode top;
+            astNode t = null;
+            astNode last;
 
-            while (idx < src.Length)
+            while (idx < tokens.Count)
             {
                 last = t;
-                t = getToken(ref idx);
+                t = tokens[idx++];
            
-                if (t.type==Token.ttype.EOF || t.name == "}")
+                if (t.type=="EOF" || t.name == "}")
                 {
                     while (opStack.Count > 1)
                     {
@@ -267,16 +280,16 @@ num foo( num a, num b)
                     break;
                 }
                 //handle unary - op. subtraction op can't follow op or ( or ,
-                if(last!=null && t.name=="-" && (last.name=="(" || last.name=="," || last.op!=null))
+                if(last!=null && t.name=="-" && (last.name=="(" || last.name=="," || last.type=="OP"))
                 {
-                    t.op = ops["neg"];
                     t.name = "neg";
                     //if next op is a numeric constant, negate it and replace token to save negation operation
-                    Token next = peekToken(idx);
-                    if (next != null && next.type == Token.ttype.NUMBER)
+                    var next = tokens[idx];
+                    if (next != null && next.type == "CONST")
                     {
-                        t = getToken(ref idx);
+                        t = tokens[idx++];
                         t.name = "-" + t.name;
+                        t.val = "-" + t.val;
                     }
                 }
 
@@ -285,24 +298,24 @@ num foo( num a, num b)
            
                 //if(t.name==";")
                 //new expression starts with ID or function or label and end with ) or const or id or label
-                if (last != null && (t.type == Token.ttype.ID || t.type == Token.ttype.FUNCTION || t.type == Token.ttype.LABEL) && (last.type == Token.ttype.ID || last.type == Token.ttype.NUMBER || last.type == Token.ttype.LABEL || last.name == ")"))
+                if (last != null && (t.type == "ID" || t.type == "FN" || t.type == "LABEL") && (last.type == "ID" || last.type == "CONST" || last.type == "LABEL" || last.name == ")"))
                 {
                     while (opStack.Count > 1 && opStack.Peek().name != "(" )
                     {
                         popFunction(outp, opStack);
                     }
                 }
-                if (t.type == Token.ttype.ID)outp.Push(new astNode() { type = "ID", name = t.name,line=t.line });
-                else if (t.type == Token.ttype.STRING) outp.Push(new astNode() { type = "STRING", val = t.name,line=t.line });
-                else if (t.type == Token.ttype.NUMBER) outp.Push(new astNode() { type = "CONST", val = t.name,line=t.line });
-                else if (t.type == Token.ttype.LABEL) outp.Push(new astNode() { type = "LABEL", name = t.name,line=t.line });
-                else if (t.type == Token.ttype.PARAMNAME) outp.Push(new astNode() { type = "PARAMNAME", name = t.name, line = t.line });
-                else if (t.type == Token.ttype.FUNCTION)
+                if (t.type == "ID")outp.Push(t);
+                else if (t.type =="STRING") outp.Push(t);
+                else if (t.type == "CONST") outp.Push(t);
+                else if (t.type == "LABEL") outp.Push(t);
+                else if (t.type == "PARAMNAME") outp.Push(t);
+                else if (t.type == "FN")
                 {
                     opStack.Push(t);
                     outp.Push(new astNode(){name="FN_START"});
                 }
-                else if (t.type == Token.ttype.OP)
+                else if (t.type == "OP")
                 {
                     if (t.name == ",")
                     {
@@ -323,7 +336,7 @@ num foo( num a, num b)
                             popFunction(outp, opStack);
                         }
                         opStack.Pop();
-                        if (opStack.Peek().type == Token.ttype.FUNCTION)
+                        if (opStack.Peek().type == "FN")
                         {
                             popFunction(outp, opStack);
                         }
@@ -331,10 +344,17 @@ num foo( num a, num b)
                     else
                     {
                         top = opStack.Peek();
-                        while (top.type == Token.ttype.OP && top.op != null && ((t.op.leftAssociative && t.op.precidence <= top.op.precidence) || (!t.op.leftAssociative && t.op.precidence < top.op.precidence)))
+                        Op topop=null;
+                        if(ops.ContainsKey(top.name))topop=ops[top.name];
+                       
+                        var cop=ops[t.name];
+                        while (top.type == "OP" && topop != null && ((cop.leftAssociative && cop.precidence <= topop.precidence) || (!cop.leftAssociative && cop.precidence < topop.precidence)))
                         {
                             popFunction(outp, opStack);
                             top = opStack.Peek();
+                            if (ops.ContainsKey(top.name)) topop = ops[top.name];
+                            else topop = null;
+                       
                         }
                         opStack.Push(t);
                     }
@@ -346,37 +366,6 @@ num foo( num a, num b)
             while (outp.Count > 0) ret.children.Insert(0, outp.Pop());
             
             return ret;
-        }
-    }
-    class Op
-    {
-        public int precidence;
-        public bool leftAssociative;
-        public int nParams;
-    }
-    class Token
-    {
-        public string name;
-        public enum ttype{ID,FUNCTION,LABEL,NUMBER,STRING,OP,EOF,PARAMNAME};
-        public ttype type;
-        public Op op;
-        public int line;
-
-    }
-    public class astNode
-    {
-        public List<astNode> children=new List<astNode>();
-        public string name;
-        public string type;
-        public string val;
-        public string typename;
-        public astNode parent;
-        public int line;
-        public object context;
-        public astNode getLeftBottomLeaf()
-        {
-            if (children == null || children.Count == 0) return this;
-            return children[0].getLeftBottomLeaf();
         }
     }
 }

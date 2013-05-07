@@ -9,7 +9,9 @@ namespace bluntsharp
     {
         public int address;
         public List<int> callees = new List<int>();
-
+        public bluntLabel()
+        {
+        }
         public bluntLabel(int pc)
         {
             address = pc;
