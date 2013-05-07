@@ -22,7 +22,7 @@ typedef void (*RADIO_DATA_CALLBACK)(uint8* msg,uint8 len,uint8 fromCon);
 
 bool queueLowPriorityData(uint8* data, uint8 len);
 uint8 appendLowPriorityData(uint8* buffer, uint8 maxlen);
-void ackLowPriorityData(void);
-void handleLowPriorityData(uint8* buffer, uint8 len);
+bool ackLowPriorityData(void);
+bool handleLowPriorityData(uint8* buffer, uint8 len);
 void setRadioDataCallback(RADIO_DATA_CALLBACK cb,uint8 connector_id);
 

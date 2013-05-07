@@ -99,7 +99,7 @@ uint8 appendLowPriorityData(uint8* buffer, uint8 maxlen)
     return sendlen+len;
 
 }
-void ackLowPriorityData()
+bool ackLowPriorityData()
 {
     if(lpqLen!=0 && sendlen!=0)
     {
@@ -113,10 +113,12 @@ void ackLowPriorityData()
             lpqSeqId++;
             lpqChunkId=0;
             sendlen=0;
+            return TRUE;
         }
     }
+    return FALSE;
 }
-void handleLowPriorityData(uint8* buffer, uint8 len)
+bool handleLowPriorityData(uint8* buffer, uint8 len)
 {
     uint8 rxSeqId=buffer[0];
     uint8 rxChunkId=buffer[1];
@@ -164,16 +166,19 @@ void handleLowPriorityData(uint8* buffer, uint8 len)
             }
             else
             {
-                    //something has gone wrong and the buffer is full
-                    lpbWrite=0;
-                    lpbLen=0;
-              }
+                //something has gone wrong and the buffer is full
+
+            	lpbWrite=0;
+                lpbLen=0;
+                return FALSE;
+            }
         }
     }
     else //missing chunk discard buffer
     {
          lpbLen=0;
     }
+    return TRUE;
 }
 void setRadioDataCallback(RADIO_DATA_CALLBACK cb, uint8 connector_id)
 {

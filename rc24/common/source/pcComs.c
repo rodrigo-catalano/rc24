@@ -84,7 +84,7 @@ PUBLIC void vFifoPutCf(unsigned char c)
 
 PUBLIC void vFifoPutC(unsigned char c)
 {
-  while ((u8AHI_UartReadLineStatus(E_AHI_UART_0) & E_AHI_UART_LS_THRE ) == 0);
+//  while ((u8AHI_UartReadLineStatus(E_AHI_UART_0) & E_AHI_UART_LS_THRE ) == 0);
 
   pcComsTxLock=1;
   pcComsTxBuffer[pcComsWriteIdx++]=c;

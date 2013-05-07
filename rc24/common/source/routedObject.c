@@ -117,6 +117,20 @@ void routedObjectHandleMessage(routedObject* obj,uint8* msg, uint8 len, uint8 fr
 
 	}
 }
+void routedObjectBindParams(routedObject* obj)
+{
+	//calculate pointer for parameter that are part of object and only have an offset
+	int i;
+	for( i=0;i<obj->parameters.len;i++)
+	{
+		ccParameter* param = &obj->parameters.parameters[i];
+		if(param->paramPtr==NULL && param->paramOffset>0)
+		{
+			param->paramPtr=((uint8*)obj)+param->paramOffset;
+		}
+	}
+}
+
 void routedObjectConnect(routedObject* obj)
 {
 	//set return address for all connections
@@ -134,6 +148,8 @@ void routedObjectConnect(routedObject* obj)
 			}
 		}
 	}
+	routedObjectBindParams(obj);
 }
+
 
 

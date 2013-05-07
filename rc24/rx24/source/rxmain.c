@@ -88,6 +88,7 @@ typedef struct
 	uint16 u16Address;
 	uint16 u16PanId;
 	uint8 u8ChannelSeqNo;
+	bool lowPrioritySent;
 
 } tsEndDeviceData;
 
@@ -163,6 +164,8 @@ PRIVATE tsEndDeviceData sEndDeviceData;	// End device state store
 PRIVATE uint32 rxdpackets = 0;	// Global packet counter
 PRIVATE uint8 txLinkQuality = 0;	// Link quality from last message
 PRIVATE uint32 frameCounter = 0;	// Good for almost 3 years at 50/sec
+PRIVATE uint32 missedFrames = 0;	// count of continuous missed frames, reset by a good frame.
+
 //PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
 //PRIVATE uint16 rxMixedDemands[20];  //positions post any mixing on rx
 PRIVATE uint8 rxLEDFlashCount = 0;	// Counter for LED flasher
@@ -203,6 +206,7 @@ uint32 uart0RoutedPacketsRxd=0;
 uint32 uart0RoutedBytesTxd=0;
 uint32 uart0RoutedPacketsTxd=0;
 
+uint32 debugCount1=0;
 
 PUBLIC char* rxComPortEnumValues[3] =
 { "Disabled","UART 0", "UART 1" };
@@ -243,6 +247,10 @@ ccParameter exposedParameters[]=
 		{ "gpsPacketsRxd",CC_UINT32,&gpsData.nmeaPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
 		{ "I2C Enabled", CC_BOOL, &rxHardware.i2cInUse, 0 ,0,CC_NO_GETTER,CC_NO_SETTER},
 		{ "RX Mixed Demands", CC_UINT16_ARRAY,NULL,offsetof(Rx,rxMixedDemands),20 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "radio Overflows", CC_INT32,NULL,offsetof(Rx,radioOverflows),0 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "debug count 1", CC_INT32,&debugCount1,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "frameCounter", CC_INT32,&frameCounter,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "missedFrames", CC_INT32,&missedFrames,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER}
 
 
 };
@@ -292,6 +300,7 @@ void connectObjects()
 	RX.ro.nConnections=5;
 	RX.ro.parameters=parameterList;
 	RX.ro.messageHandler=RXHandleMessage;
+	RX.radioOverflows=0;
 
 	sensorBus1.ro.name="1 wire";
 	sensorBus1.ro.connections=onewConnections;
@@ -495,6 +504,15 @@ void frameStartEvent(void* context,void* buff)
 {
 	// Called every frame, currently 20ms
 	frameCounter++;
+
+	if(frameReceived==FALSE)
+	{
+		missedFrames++;
+	}
+	else
+	{
+		missedFrames=0;
+	}
 
 	//used instead of sequence number to prevent handling the same frame twice
 	frameReceived=FALSE;
@@ -800,7 +818,10 @@ PRIVATE void vHandleMcpsDataDcfm(MAC_McpsDcfmInd_s *psMcpsInd)
 	// Data frame transmission successful
 	if (psMcpsInd->uParam.sDcfmData.u8Status == MAC_ENUM_SUCCESS)
 	{
-		ackLowPriorityData();
+		if(sEndDeviceData.lowPrioritySent==TRUE)
+		{
+			ackLowPriorityData();
+		}
 	}
 	else
 	{
@@ -833,6 +854,8 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 
 	uint8 realTimeDataLen=psFrame->au8Sdu[0];
 	uint8 lowPriorityDataLen=psFrame->u8SduLength-1-realTimeDataLen;
+
+
 	// If not associated ??
 	// TODO - should this be merged with similar code below [1]
 	if (sEndDeviceData.eState != E_STATE_ASSOCIATED)
@@ -905,6 +928,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		// If there is more data, process it
 		if(lowPriorityDataLen>0)
 		{
+			debugCount1++;
 			handleLowPriorityData(&psFrame->au8Sdu[realTimeDataLen+1], lowPriorityDataLen);
 		}
 
@@ -1172,6 +1196,8 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 	// Tack on the low priority data
 	// TODO - fix the magic number for the maxlen arg
 	index += appendLowPriorityData(&pu8Payload[index], 32);
+	if(index>u8Len + 1)sEndDeviceData.lowPrioritySent=TRUE;
+	else sEndDeviceData.lowPrioritySent=FALSE;
 
 	// Set frame length
 	sMcpsReqRsp.uParam.sReqData.sFrame.u8SduLength = index;
@@ -1201,7 +1227,10 @@ PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast)
 void txComsSendRoutedPacket(uint8* msg, uint8 len)
 {
 	// Add the packet to the low priority queue
-	queueLowPriorityData(msg, len);
+	if(queueLowPriorityData(msg, len)==FALSE)
+	{
+		RX.radioOverflows++;
+	}
 }
 
 /****************************************************************************

@@ -149,6 +149,8 @@ uint8 ccWriteString(uint8* out,const char* val);
 uint8 ccEnumGroupCommand(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
 uint8 ccSetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
 uint8 ccGetParameter(ccParameterList* paramList, uint8* inMsg, uint8* outMsg);
+int ccGetArrayItem(ccParameter* param, int index);
+void ccSetArrayItem(ccParameter* param, int index,int value);
 
 
 

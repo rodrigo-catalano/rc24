@@ -44,16 +44,24 @@
     #define OP_create_array 30
     #define OP_neg 31
 
-
-
 	//opcodes to access routed object fields and convert to num type
 	#define OP_ro_getint16 32
 	#define OP_ro_setint16 33
 	#define OP_ro_get_array_item 34
 	#define OP_ro_set_array_item 35
 
+	#define OP_sign 36
+	#define OP_abs 37
+	#define OP_min 38
+	#define OP_max 39
+	#define OP_limit 40
 
 
+	#define OP_prints 41
+	#define OP_say 42
+	#define OP_sayint 43
+
+	#define OP_get_routed_array 44
 
 	inline void assign()
 	{
@@ -101,6 +109,34 @@
 		*(_sp-2)=t;//val
 		_sp-=1;
 	}
+	inline void fnsign()
+	{
+		*(_sp-1)= *(_sp-1)>=0?1:0;
+	}
+	inline void fnabs()
+	{
+		if(*(_sp-1)<0)*(_sp-1)=-*(_sp-1);
+	}
+	inline void fnmin()
+	{
+		*(_sp-1)= *(_sp-2)<*(_sp-1)?*(_sp-2):*(_sp-1);
+		_sp-=1;
+	}
+	inline void fnmax()
+	{
+		*(_sp-1)= *(_sp-2)>*(_sp-1)?*(_sp-2):*(_sp-1);
+		_sp-=1;
+	}
+	inline void fnlimit()
+	{
+		int x=*(_sp-3);
+		if(x<*(_sp-2))*(_sp-3)=*(_sp-2);
+		else if( x>*(_sp-1))*(_sp-3)=*(_sp-1);
+		_sp-=2;
+	}
+
+
+
 	inline void fngt()
 	{
 		//val,val,val,||,val,ref,val,ref
@@ -187,6 +223,21 @@
 	{
 		//printf("> %d\n", *(_sp-1));
 		dbgPrintf(">%i", *(_sp-1));
+		_sp-=1;
+	}
+	inline void fnprints()
+	{
+		//TODO decode string
+		_sp-=1;
+	}
+	inline void fnsay()
+	{
+		//TODO
+		_sp-=1;
+	}
+	inline void fnsayint()
+	{
+		//TODO
 		_sp-=1;
 	}
 	inline void fnreturn()
@@ -373,16 +424,36 @@
 				_sp-=3;
 				break;
 			case OP_ro_get_array_item:
-				//stack obj*,index,array index
-				if(*(_sp-3)!=0)
-					*(_sp-3)=ccGetObjectParameterAsNum((routedObject*) *(_sp-3), *(_sp-2), *(_sp-1) );
-				_sp-=2;
+				//stack obj*,array index
+				if(*(_sp-2)!=0)
+					*(_sp-2) = ccGetArrayItem((ccParameter*) *(_sp-2), *(_sp-1) );
+				_sp-=1;
 				break;
 			case OP_ro_set_array_item:
-				//stack obj*,index,array index,value
-				if(*(_sp-4)!=0)
-					ccSetObjectParameterAsNum((routedObject*) *(_sp-4), *(_sp-3),*(_sp-2),*(_sp-1) );
-				_sp-=4;
+				//stack obj*,array index,value
+				if(*(_sp-3)!=0)
+					ccSetArrayItem((ccParameter*) *(_sp-3),*(_sp-2),*(_sp-1) );
+				_sp-=3;
+				break;
+
+
+			case OP_sign: fnsign(); break;
+			case OP_abs: fnabs(); break;
+			case OP_min: fnmin(); break;
+			case OP_max: fnmax(); break;
+			case OP_limit: fnlimit(); break;
+
+
+			case OP_prints: fnprints(); break;
+			case OP_say: fnsay(); break;
+			case OP_sayint: fnsayint(); break;
+
+			case OP_get_routed_array:
+				//obj,index
+				if(*(_sp-2)!=0)
+					*(_sp-2)=ccGetParameterPointer((routedObject*) *(_sp-2), *(_sp-1) );
+				_sp-=1;
+
 				break;
 			default:
 				//printf("x");
