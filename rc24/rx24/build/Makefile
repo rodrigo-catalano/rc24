@@ -106,6 +106,7 @@ APPSRC += mpu6050.c
 APPSRC += routedObject.c
 APPSRC += imu.c
 APPSRC += pilot.c
+APPSRC += blunt.c
 
 APPSRC += AppQueueApi.c
 #APPSRC += Printf.c

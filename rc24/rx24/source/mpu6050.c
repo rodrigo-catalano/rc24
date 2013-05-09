@@ -113,10 +113,10 @@ Copyright 2008 - 2009 © Alan Hopper
  #define MPU6050_FIFO_R_W           0x74   // R/W
  #define MPU6050_WHO_AM_I           0x75   // R
 
-#if (defined JN5148 || defined JN5168 )
-#else
+//#if (defined JN5148 || defined JN5168 )
+//#else
 	#define bAHI_SiMasterPollRxNack bAHI_SiPollRxNack
-#endif
+//#endif
 
 PRIVATE bool_t bi2cBusWait(void)
 {
