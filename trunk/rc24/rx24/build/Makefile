@@ -42,6 +42,7 @@ TARGET = rx24
 # Default target device is the JN5148
 
 JENNIC_CHIP ?= JN5148
+#JENNIC_CHIP ?= JN5168
 
 #JENNIC_CHIP ?= JN513xR1
 ##############################################################################
