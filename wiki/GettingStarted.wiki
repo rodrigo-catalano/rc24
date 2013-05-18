@@ -20,7 +20,20 @@ The binary files will soon be added to the project but in the meantime you will 
 
 ==RX & TX code ==
 
-To build the Rx and Tx code for the JN5148 modules on a windows pc you will need to download the JN-SW-4041 JN5148 ZBPro SDK Toolchain  and JN-SW-4040 JN5148 ZBPro SDK Libraries from the [http://www.jennic.com/support/software/ Jennic Support Site] and install them.  This will install a copy of the Eclipse IDE.  The IDE is set up to cross-compile the source code to the required machine architecture for the Jennic modules.
+To build the Rx and Tx code on a windows pc you will need to download and install the following in this order
+
+
+JN-SW-4041 SDK Toolchain  -  eclipse and flash tools
+
+JN-SW-4051 JenNet-IP SDK Installer   -  jn5148 support
+
+JN-SW-4030 SDK Libraries  -  jn5139 support
+
+JN-SW-4065 JN516x JenNet-IP SDK Libraries  -  jn5168 support
+
+from the [http://www.jennic.com/support/software/ Jennic Support Site] 
+
+This will let you build for jn5139,jn5148 and jn5168 devices from eclipse.
 
 You will then need to get a copy of the rx and tx source code from the Google Project [http://rc24.googlecode.com/svn/trunk/rc24 svn repository].
 
