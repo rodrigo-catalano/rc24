@@ -613,7 +613,11 @@ PRIVATE void vInitSystem(void)
 		// TODO see if we can use more power as rx antenna is lower gain
 		//??? boost is +2.5 ant is 1 and power set to 4 = 7.5 ????
 		vAHI_HighPowerModuleEnable(TRUE, TRUE);
+#ifdef JN5168
+		eAppApiPlmeSet(PHY_PIB_ATTR_TX_POWER, 34+10*2);
+#else
 		bAHI_PhyRadioSetPower(2);
+#endif
 	}
 	// Initialise end device state
 	sEndDeviceData.eState = E_STATE_IDLE;

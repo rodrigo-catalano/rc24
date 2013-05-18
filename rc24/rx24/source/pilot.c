@@ -7,7 +7,6 @@
 #include "rxmain.h"
 #include "imu.h"
 #include "pilot.h"
-#include "fixed.hpp"
 #include "blunt.h"
 
 // select visible parameters
