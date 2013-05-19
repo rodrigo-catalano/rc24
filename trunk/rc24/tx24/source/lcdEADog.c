@@ -114,7 +114,7 @@ void LcdBitBlt(uint8* buf,int scanlen,int x,int y,int w,int h,lcdEADog* lcd)
         {
             vAHI_SpiStartTransfer32(*buf32++);
 
-#if (JENNIC_CHIP_FAMILY == JN514x)
+#if (defined JN5148 || defined JN5168 )
       vAHI_SpiWaitBusy();
 #else
             asm volatile("l.nop;");
