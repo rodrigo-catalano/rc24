@@ -71,7 +71,7 @@ JENNIC_STACK ?= MAC
 # Path definitions
 
 # Use if application directory contains multiple targets
-SDK_BASE_DIR   	 	= $(abspath ../../../..)
+SDK_BASE_DIR   	 	= /cygdrive/c/Jennic
 APP_BASE            	 	= $(abspath ../..)
 APP_BLD_DIR			= $(APP_BASE)/$(TARGET)/Build
 APP_SRC_DIR 	        	= $(APP_BASE)/$(TARGET)/Source

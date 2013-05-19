@@ -41,7 +41,8 @@ TARGET = tx24
 
 # Default target device is the JN5148
 
-JENNIC_CHIP ?= JN5148
+JENNIC_CHIP ?= JN5168
+
 #JENNIC_CHIP ?= JN513xR1
 ##############################################################################
 # Default DK2 development kit target hardware
@@ -136,6 +137,7 @@ INCFLAGS += -I$(COMPONENTS_BASE_DIR)/AppQueueApi/Include
 
 ##############################################################################
 
+##############################################################################
 # You should not need to edit below this line
 
 ##############################################################################
@@ -144,7 +146,7 @@ INCFLAGS += -I$(COMPONENTS_BASE_DIR)/AppQueueApi/Include
 
 include $(SDK_BASE_DIR)/Chip/Common/Build/config.mk
 include $(SDK_BASE_DIR)/Platform/Common/Build/Config.mk
-include $(SDK_BASE_DIR)/Stack/Common/Build/config.mk
+include $(SDK_BASE_DIR)/Stack/Common/Build/Config.mk
 
 ##############################################################################
 
@@ -163,6 +165,7 @@ APPDEPS = $(APPOBJS:.o=.d)
 
 LDLIBS := $(addsuffix _$(JENNIC_CHIP_FAMILY),$(APPLIBS)) $(LDLIBS)
 LDLIBS := m $(LDLIBS)
+
 #########################################################################
 # Dependency rules
 
@@ -190,8 +193,8 @@ all: $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).bin
 
 $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).elf: $(APPOBJS) $(addsuffix _$(JENNIC_CHIP_FAMILY).a,$(addprefix $(COMPONENTS_BASE_DIR)/Library/lib,$(APPLIBS))) 
 	$(info Linking $@ ...)
-	$(CC) -Wl,--gc-sections -Wl,-u_AppColdStart -Wl,-u_AppWarmStart $(LDFLAGS) -T$(LINKCMD) -o $@ $(APPOBJS) $(addprefix -l,$(LDLIBS)) -Wl,-Map,$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).map 
-	ba-elf-size $@
+	$(CC) -Wl,--gc-sections -Wl,-u_AppColdStart -Wl,-u_AppWarmStart $(LDFLAGS) -T$(LINKCMD) -o $@ $(APPOBJS) -Wl,--start-group  $(addprefix -l,$(LDLIBS)) -Wl,--end-group -Wl,-Map,$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).map 
+	${SIZE} $@
 	@echo
 
 $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).bin: $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).elf 

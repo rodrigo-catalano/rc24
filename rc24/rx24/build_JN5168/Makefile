@@ -34,14 +34,16 @@
 
 # Application target name
 
-TARGET = tx24
+TARGET = rx24
 
 ##############################################################################
 #User definable make parameters that may be overwritten from the command line
 
 # Default target device is the JN5148
 
-JENNIC_CHIP ?= JN5148
+#JENNIC_CHIP ?= JN5148
+JENNIC_CHIP ?= JN5168
+
 #JENNIC_CHIP ?= JN513xR1
 ##############################################################################
 # Default DK2 development kit target hardware
@@ -85,29 +87,30 @@ APP_COMMON_SRC_DIR = $(APP_BASE)/Common/Source
 # Application Source files
 
 # Note: Path to source file is found using vpath below, so only .c filename is required
-APPSRC  = txmain.c
-APPSRC += display.c
+APPSRC  = rxmain.c
 APPSRC += hopping.c
-APPSRC += lcdEADog.c
-APPSRC += model.c
-APPSRC += mymodels.c
-APPSRC += pcComs.c
-APPSRC += ppm.c
-APPSRC += ps2.c
-APPSRC += radiocoms.c
 APPSRC += routedmessage.c
 APPSRC += store.c
 APPSRC += swEventQueue.c
-APPSRC += tsc2003.c
-APPSRC += wii.c
+APPSRC += servopwm.c
+APPSRC += motorpwm.c
+APPSRC += nmeagps.c
+APPSRC += myrxs.c
+APPSRC += pcComs.c
 APPSRC += hwutils.c
 APPSRC += codeUpdate.c
-APPSRC += gui_walnut.c
+APPSRC += radiocoms.c
 APPSRC += commonCommands.c
 APPSRC += exceptions.c
-#APPSRC += scriptIL.c
+APPSRC += oneWireBus.c
+APPSRC += mpu6050.c
+APPSRC += routedObject.c
+APPSRC += imu.c
+APPSRC += pilot.c
+APPSRC += blunt.c
 
 APPSRC += AppQueueApi.c
+#APPSRC += Printf.c
 
 ##############################################################################
 # Additional Application Source directories
@@ -115,6 +118,7 @@ APPSRC += AppQueueApi.c
 # e.g. for AppQueueApi
 
 ADDITIONAL_SRC_DIR += $(COMPONENTS_BASE_DIR)/AppQueueApi/Source
+ADDITIONAL_SRC_DIR += $(COMPONENTS_BASE_DIR)/Utilities/Source
 
 ##############################################################################
 # Standard Application header search paths
@@ -135,7 +139,6 @@ INCFLAGS += -I$(COMPONENTS_BASE_DIR)/AppQueueApi/Include
 #APPLIBS += 
 
 ##############################################################################
-
 # You should not need to edit below this line
 
 ##############################################################################
@@ -144,7 +147,7 @@ INCFLAGS += -I$(COMPONENTS_BASE_DIR)/AppQueueApi/Include
 
 include $(SDK_BASE_DIR)/Chip/Common/Build/config.mk
 include $(SDK_BASE_DIR)/Platform/Common/Build/Config.mk
-include $(SDK_BASE_DIR)/Stack/Common/Build/config.mk
+include $(SDK_BASE_DIR)/Stack/Common/Build/Config.mk
 
 ##############################################################################
 
@@ -162,7 +165,7 @@ APPDEPS = $(APPOBJS:.o=.d)
 # symbols are resolved correctly (i.e. ordering is significant for GCC)
 
 LDLIBS := $(addsuffix _$(JENNIC_CHIP_FAMILY),$(APPLIBS)) $(LDLIBS)
-LDLIBS := m $(LDLIBS)
+
 #########################################################################
 # Dependency rules
 
@@ -190,8 +193,8 @@ all: $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).bin
 
 $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).elf: $(APPOBJS) $(addsuffix _$(JENNIC_CHIP_FAMILY).a,$(addprefix $(COMPONENTS_BASE_DIR)/Library/lib,$(APPLIBS))) 
 	$(info Linking $@ ...)
-	$(CC) -Wl,--gc-sections -Wl,-u_AppColdStart -Wl,-u_AppWarmStart $(LDFLAGS) -T$(LINKCMD) -o $@ $(APPOBJS) $(addprefix -l,$(LDLIBS)) -Wl,-Map,$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).map 
-	ba-elf-size $@
+	$(CC) -Wl,--gc-sections -Wl,-u_AppColdStart -Wl,-u_AppWarmStart $(LDFLAGS) -T$(LINKCMD) -o $@ $(APPOBJS) -Wl,--start-group  $(addprefix -l,$(LDLIBS)) -Wl,--end-group -Wl,-Map,$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).map 
+	${SIZE} $@
 	@echo
 
 $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).bin: $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).elf 

@@ -291,10 +291,10 @@ PUBLIC void AppColdStart(void)
 
 	//get config from flash
 	//    loadSettings();
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 	vAHI_WatchdogStop();
-
-#else
+#endif
+#ifdef JN5139
 	vAppApiSetBoostMode(TRUE);
 #endif
 
@@ -423,13 +423,14 @@ PUBLIC void AppColdStart(void)
 	while (bAHI_APRegulatorEnabled() == 0)
 		;
 
+#ifndef JN5168
 	//setup comp1 as slow adc
 	vAHI_ComparatorEnable(E_AHI_AP_COMPARATOR_1, E_AHI_COMP_HYSTERESIS_0MV,
 			E_AHI_COMP_SEL_DAC);
 
 	vAHI_DacEnable(E_AHI_AP_DAC_1, E_AHI_AP_INPUT_RANGE_2,
 			E_AHI_DAC_RETAIN_ENABLE, batDac);
-
+#endif
 	joystickOffset[0] = -116;
 	joystickGain[0] = -1766;
 	joystickOffset[1] = -173;
@@ -564,7 +565,11 @@ PRIVATE void vInitSystem(void)
 		//max power for europe including antenna gain is 10dBm
 		//??? boost is +2.5 ant is 2 and power set to 4 = 8.5 ????
 		vAHI_HighPowerModuleEnable(TRUE, TRUE);
+#ifdef JN5168
+		eAppApiPlmeSet(PHY_PIB_ATTR_TX_POWER, 34+10*2);
+#else
 		bAHI_PhyRadioSetPower(2);
+#endif
 	}
 
 	/* Initialise coordinator state */
@@ -596,7 +601,7 @@ PRIVATE void vInitSystem(void)
 	// disable normal hold off and retry stuff
 	// do it in app code so that we can include send time in packet
 
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 	//thanks to Jennic support for this
 	s_psMacPib->u8MaxFrameRetries = 0;
 
@@ -1688,7 +1693,8 @@ void checkBattery()
 	//jn5148 has 12 bit dacs
 #ifdef JN5148
 	vAHI_DacOutput (E_AHI_AP_DAC_1,lastDacTry<<1);
-#else
+#endif
+#ifdef JN5139
 	vAHI_DacOutput (E_AHI_AP_DAC_1,lastDacTry);
 #endif
 }
@@ -1931,17 +1937,16 @@ void sleep()
 	//vAHI_DioSetOutput(0,lcd.resetpin);
 	//vAHI_DioSetOutput(lcd.spicspin,0);
 
-#ifdef JN5148
-
-#else
+#ifdef JN5139
 	vAppApiSetBoostMode(FALSE);
 #endif
 	//if you don't do this the high power amp does not sleep
 	MAC_vPibSetRxOnWhenIdle(s_pvMac, FALSE, FALSE);
 
 	vAHI_ComparatorDisable(E_AHI_AP_COMPARATOR_1);
+#ifndef JN5168
 	vAHI_ComparatorDisable(E_AHI_AP_COMPARATOR_2);
-
+#endif
 	vAHI_WakeTimerEnable(E_AHI_WAKE_TIMER_0, TRUE);
 	vAHI_WakeTimerStart(E_AHI_WAKE_TIMER_0, 32* 1000* 5 ) ;//5 second wakeup
 	vAHI_Sleep(E_AHI_SLEEP_OSCON_RAMON);
