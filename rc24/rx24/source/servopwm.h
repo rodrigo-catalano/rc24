@@ -46,7 +46,7 @@ PUBLIC void setServoDemand (const uint16 channel, const uint32 demand);
 PUBLIC void calcSyncError (const int txTime);
 
 // Start the servo pwm system
-PUBLIC void startServoPwm (void);
+PUBLIC void startServoPwm (uint8 servoUpdateRate);
 
 // Return some time info TODO - Explain
 PUBLIC int getSeqClock (void);
@@ -56,5 +56,8 @@ PUBLIC uint32 getErrorRate (void);
 
 // Set app context function called at start of each frame
 PUBLIC void setFrameCallback(SW_EVENT_FN callback);
+
+// Set app context function called at a bit before servo output
+PUBLIC void setMixCallback(SW_EVENT_FN callback);
 
 #endif

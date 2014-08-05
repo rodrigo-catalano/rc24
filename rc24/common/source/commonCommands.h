@@ -127,6 +127,9 @@ typedef union
 #define CC_NO_VAR_ACCESS NULL
 #define CC_NO_OFFSET 0
 
+//flags
+#define CC_STORE 1
+#define CC_NO_STORE 0
 
 typedef struct
 {
@@ -137,6 +140,7 @@ typedef struct
 	uint32 arrayLen; //length of array parameter
 	void* getFunction;
 	VOID_FN setFunction;
+	uint8 flags;
 } ccParameter;
 
 typedef struct

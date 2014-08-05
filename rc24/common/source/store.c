@@ -44,8 +44,10 @@
 
 
  */
-
-//todo allow for bigger sector size on JN5148
+/* this all got rather messed up in trying to make it work with the different flash on the 5168
+ * in the receiver code it has been replaced with much neater code in objectstore
+ * the tx code still needs to be changed to use objectstore
+ */
 
 #include <jendefs.h>
 #include <AppHardwareApi.h>
@@ -54,18 +56,81 @@
 #include "hwutils.h"
 
 #include "store.h"
+
+
+
+#ifdef JN5168
+void flushFlashBuffer(store* s)
+{
+	if(s->flashWriteBuffPos>0)
+	{
+		bAHI_FullFlashProgram(s->flashWriteAddr, s->flashWriteBuffPos, (uint8*) s->flashWriteBuff);
+		s->flashWriteAddr+=PAGEWORDLEN;
+		s->flashWriteBuffPos=0;
+	}
+}
+#endif
+void flashOpen(store* s,uint32 u32Addr)
+{
+	s->flashWriteAddr=u32Addr;
+#ifdef JN5168
+	s->flashWriteBuffPos=0;
+#endif
+}
+void flashWriteSeek(store* s,int i)
+{
+#ifdef JN5168
+	flushFlashBuffer(s);
+#endif
+	s->flashWriteAddr+=i;
+}
+void flashWrite(store* s,uint16 u16Len,uint8 *pu8Data)
+{
+#ifdef JN5168
+	while(u16Len>0)
+	{
+		s->flashWriteBuff[s->flashWriteBuffPos++]=*(pu8Data++);
+		u16Len--;
+		if(s->flashWriteBuffPos>=PAGEWORDLEN)flushFlashBuffer(s);
+	}
+#else
+	bAHI_FullFlashProgram(s->flashWriteAddr, u16Len, pu8Data);
+	s->flashWriteAddr+=u16Len;
+#endif
+}
+
+uint32 flashClose(store* s)
+{
+	return s->flashWriteAddr;
+}
+
+
+
+
+
+
 void storeStartSection(store* parent, uint8 tag, store* section)
 {
 	section->base = parent->currentPos;
+	section->flashWriteAddr=parent->flashWriteAddr;
 	section->currentPos = parent->currentPos;
 	writeUint8(section, tag);
 	section->currentPos += 2;
+	section->flashWriteAddr+=2;
+
+#ifdef JN5168
+	//TODO make work on 5168 or swap to object store
+#endif
 }
 uint16 storeEndSection(store* parent, store* section)
 {
 	uint16 len = section->currentPos - section->base;
-	bAHI_FullFlashProgram(section->base + 1, 2, (uint8*) &len);
+//	bAHI_FullFlashProgram(section->base + 1, 2, (uint8*) &len);
 	parent->currentPos = section->currentPos;
+	parent->flashWriteAddr=section->flashWriteAddr;
+	section->flashWriteAddr=section->base + 1;
+	flashWrite(section,2, (uint8*) &len);
+
 	return len;
 }
 bool storeFindSection(store* parent, uint8 tag, store* result)
@@ -126,7 +191,8 @@ void storeUint8Section(store* s, uint8 tag, uint8 val)
 
 uint16 writeInt32(store* s, int32 val)
 {
-	bAHI_FullFlashProgram(s->currentPos, 4, (uint8*) &val);
+	//bAHI_FullFlashProgram(s->currentPos, 4, (uint8*) &val);
+	flashWrite(s,4, (uint8*) &val);
 	s->currentPos += 4;
 	return 4;
 }
@@ -137,9 +203,17 @@ int32 readInt32(store* s)
 	s->currentPos += 4;
 	return val;
 }
+uint16 writeUint32(store* s, uint32 val)
+{
+	//bAHI_FullFlashProgram(s->currentPos, 4, (uint8*) &val);
+	flashWrite(s,4, (uint8*) &val);
+	s->currentPos += 4;
+	return 4;
+}
 uint16 writeInt16(store* s, int16 val)
 {
-	bAHI_FullFlashProgram(s->currentPos, 2, (uint8*) &val);
+	//bAHI_FullFlashProgram(s->currentPos, 2, (uint8*) &val);
+	flashWrite(s, 2, (uint8*) &val);
 	s->currentPos += 2;
 	return 2;
 }
@@ -152,8 +226,9 @@ int16 readInt16(store* s)
 }
 uint16 writeUint8(store* s, uint8 val)
 {
-	bAHI_FullFlashProgram(s->currentPos, 1, (uint8*) &val);
-	s->currentPos++;
+	//bAHI_FullFlashProgram(s->currentPos, 1, (uint8*) &val);
+	flashWrite(s,1, (uint8*) &val);
+	 s->currentPos++;
 	return 1;
 }
 uint8 readUint8(store* s)
@@ -167,7 +242,8 @@ uint16 writeString(store* s, char* val)
 {
 	int len = strlen(val);
 	writeUint8(s, (uint8) len);
-	bAHI_FullFlashProgram(s->currentPos, len, (uint8*) val);
+	//bAHI_FullFlashProgram(s->currentPos, len, (uint8*) val);
+	flashWrite(s,len, (uint8*) val);
 	s->currentPos += len;
 	return len + 1;
 }
@@ -184,7 +260,8 @@ void readString(store* s, char* val, uint16 maxlen)
 }
 uint16 writeBuffer(store* s, uint8* val, uint16 len)
 {
-	bAHI_FullFlashProgram(s->currentPos, len, (uint8*) val);
+//	bAHI_FullFlashProgram(s->currentPos, len, (uint8*) val);
+	flashWrite(s,len, (uint8*) val);
 	s->currentPos += len;
 	return len;
 }
@@ -199,7 +276,7 @@ void readBuffer(store* s, char* val, uint16 len)
 //alternate storage between top two sectors so it is never only in memory
 //this also means we don't need to be able to fit full store in ram
 //avoid erasing too often by marking records as old
-//we can set bits from 1 to 0 without erase
+//we can set bits from 1 to 0 without erase except on JN5168
 //11111111b = no record
 //01111111b = half written record
 //00111111b = live record
@@ -214,6 +291,67 @@ void readBuffer(store* s, char* val, uint16 len)
 // old records fairly quickly.
 // length includes the whole header
 
+/* JN5168 has blocks of 16 bytes that should not be overwritten
+ * so write STORE_LIVERECORD and version to first 16byte block
+ * then length  to second block at commit
+ * a record is incomplete if no length stored
+ *
+ *
+ *
+ *
+ */
+#ifdef JN5168
+void getNewStore(store* s)
+{
+	store os;
+	int pos;
+	uint32 version=1;
+	if (getOldStore(&os) == FALSE)
+	{
+		//nothing stored - wipe to be sure
+		bAHI_FlashEraseSector(flashNumSectors()-2);
+		bAHI_FlashEraseSector(flashNumSectors()-1);
+		pos = flashSectorSize()*(flashNumSectors()-1);
+	}
+	else
+	{
+		version=os.version+1;
+
+		//check for room or faulty record at end of current one
+		//allow new record to be twice as big as old one
+		pos = os.base + os.size;
+		int sector = pos / flashSectorSize();
+		uint8 b;
+		bAHI_FullFlashRead(pos, 1, &b);
+
+		//swap sectors if no room or faulty record
+		if (pos + os.size * 2 >= (sector + 1) * flashSectorSize() || b != STORE_NORECORD)
+		{
+			if (sector == 2)
+			{
+				pos = flashSectorSize()*(flashNumSectors()-1);
+				bAHI_FlashEraseSector(flashNumSectors()-1);
+			}
+			else
+			{
+				pos = flashSectorSize()*(flashNumSectors()-2);
+				bAHI_FlashEraseSector(flashNumSectors()-2);
+
+			}
+		}
+	}
+	flashOpen(pos);
+	s->base = pos;
+	s->currentPos = pos;
+	writeUint8(s, STORE_LIVERECORD);
+	s->version=version;
+	writeUint32(s,version);
+	flashWriteSeek(PAGEWORDLEN*2-(s->currentPos-s->base));
+	s->currentPos = s->base+2*PAGEWORDLEN;
+
+}
+
+#else
 
 void getNewStore(store* s)
 {
@@ -225,6 +363,7 @@ void getNewStore(store* s)
 		bAHI_FlashEraseSector(flashNumSectors()-2);
 		bAHI_FlashEraseSector(flashNumSectors()-1);
 		pos = flashSectorSize()*(flashNumSectors()-1);
+		pcComsPrintf("erased %d %d\r\n", flashNumSectors()-2,flashNumSectors()-1);
 
 	}
 	else
@@ -251,23 +390,43 @@ void getNewStore(store* s)
 			}
 		}
 	}
+	flashOpen(s,pos);
 	s->base = pos;
 	s->currentPos = pos;
 	writeUint8(s, STORE_PENDINGRECORD);
 	s->currentPos += 2;
+	s->flashWriteAddr +=2;
 }
+#endif
+#ifdef JN5168
+void commitStore(store* s)
+{
+	// writing the length value marks the file as complete
+	uint32 len=flashClose();
+
+	flashWriteSeek(s->base+PAGEWORDLEN);
+	writeInt32(s,len);
+	flashClose();
+
+}
+#else
 void commitStore(store* s)
 {
 	store os;
 	bool osvalid;
 	//set length
+//	uint32 len=flashClose();
+
 	uint16 len = s->currentPos - s->base;
+
+
 	bAHI_FullFlashProgram(s->base + 1, 2, (uint8*) &len);
 
 	osvalid = getOldStore(&os);
 
 	//set to new
 	s->currentPos = s->base;
+	s->flashWriteAddr = s->base;
 	writeUint8(s, STORE_LIVERECORD);
 	//mark last record as old
 	//if an error / power down happens here there could be two records marked as new
@@ -275,9 +434,70 @@ void commitStore(store* s)
 	if (osvalid)
 	{
 		os.currentPos = os.base;
+		os.flashWriteAddr = os.base;
 		writeUint8(&os, STORE_OLDRECORD);
 	}
 }
+#endif
+
+#ifdef JN5168
+
+bool getOldStore(store* s)
+{
+	uint8 b;
+	int sector;
+	uint32 pos=0;
+	uint16 len;
+	uint32 version=0;
+	uint32 tversion;
+	uint32 mostRecent=0;
+	//find record with newest version
+
+	for (sector = flashNumSectors()-2; sector <= flashNumSectors()-1; sector++)
+	{
+		pos = sector * flashSectorSize();
+		bAHI_FullFlashRead(pos, 1, &b);
+		while (b != STORE_LIVERECORD)
+		{
+
+			bAHI_FullFlashRead(pos + 1, 4, (uint8*) &tversion);
+			bAHI_FullFlashRead(pos + PAGEWORDLEN, 2, (uint8*) &len);
+
+			if(len==0xffff)
+			{
+				//incomplete record
+				break;
+			}
+			else
+			{
+				if(tversion>version)
+				{
+					version=tversion;
+					mostRecent=pos;
+				}
+
+			}
+			pos += len;
+			if (pos >= (sector + 1) * flashSectorSize())
+				break;
+			bAHI_FullFlashRead(pos, 1, &b);
+		}
+	}
+	if(mostRecent>0)
+	{
+		s->currentPos = pos + 2*PAGEWORDLEN;
+		s->base = pos;
+		s->size = len;
+		return TRUE;
+	}
+	else
+	{
+		return FALSE;
+	}
+}
+
+
+#else
 bool getOldStore(store* s)
 {
 	uint8 b;
@@ -309,4 +529,4 @@ bool getOldStore(store* s)
 	}
 	return FALSE;
 }
-
+#endif

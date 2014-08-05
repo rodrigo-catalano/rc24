@@ -23,11 +23,19 @@ Copyright 2008 - 2009 © Alan Hopper
 #include <AppHardwareApi.h>
 #include "exceptions.h"
 
+#ifdef JN5168
+#define BUS_ERROR *((volatile uint32 *)(0x4000000))
+#define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000008))
+#define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x40000C0))
+#endif
+
 #ifdef JN5148
 #define BUS_ERROR *((volatile uint32 *)(0x4000000))
 #define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000008))
 #define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x40000C0))
-#else
+#endif
+
+#ifdef JN5139
 #define BUS_ERROR *((volatile uint32 *)(0x4000008))
 #define UNALIGNED_ACCESS *((volatile uint32 *)(0x4000018))
 #define ILLEGAL_INSTRUCTION *((volatile uint32 *)(0x400001C))
@@ -60,7 +68,8 @@ void setExceptionMarker(resetType excep)
 {
 	vAHI_WakeTimerEnable(E_AHI_WAKE_TIMER_1,FALSE);
 
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
+
 	vAHI_WakeTimerStartLarge(E_AHI_WAKE_TIMER_1,(excep*1000)+400);
 #else
 	vAHI_WakeTimerStart(E_AHI_WAKE_TIMER_1,(excep*1000)+400);
@@ -153,8 +162,8 @@ void vIllegalInstructionHandler(void)
  ****************************************************************************/
 void setExceptionHandlers()
 {
-#ifdef PC
-
+#if(defined PC || defined JN5168 )
+//TODO make exceptions work on 5168
 #else
 	BUS_ERROR = (uint32) vBusErrorhandler;
 	UNALIGNED_ACCESS = (uint32) vUnalignedAccessHandler;
@@ -179,7 +188,7 @@ void setExceptionHandlers()
 resetType getResetReason()
 {
 	resetType ret=NOEXCEPTION;
-#ifdef JN5148
+#if (defined JN5148 || defined JN5168 )
 	ret=u64AHI_WakeTimerReadLarge(E_AHI_WAKE_TIMER_1)/1000;
 #endif
 #ifdef JN5139

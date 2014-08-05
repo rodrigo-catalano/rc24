@@ -1063,7 +1063,13 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 			if(pu8Data[1]==rxlatidx && initialLat==-9999)
 			{
 				initialLat=((double)f)/100000;
+#ifdef JN5139
+				//quick fix to avoid math lib on 5139 to stop bin growing over 64k
+				//todo use ffloat lib on tx
+				longitudeScale=30;
+#else
 				longitudeScale=cos(initialLat*3.1415927/180)*60;
+#endif
 			}
 			if(pu8Data[1]==rxlongidx && initialLong==-9999)
 			{
@@ -1075,7 +1081,11 @@ PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len)
 				double dlong=((double)rxData[rxlongidx])/100000-initialLong;
 				dlat*=60;
 				dlong*=longitudeScale;
+#ifdef JN5139
+				double drange=dlat + dlong;
+#else
 				double drange=sqrt(dlat*dlat + dlong*dlong);
+#endif
 				drange*=1852;//convert to meters
 				range=(int)drange;
 				//      flat earth stuff
@@ -1784,6 +1794,7 @@ void storeSettings(void* context)
 	storeModels(&s, &liveModel, pold, liveModelIdx);
 
 	commitStore(&s);
+
 }
 
 void loadSettings()
@@ -1797,6 +1808,7 @@ void loadSettings()
 	int tag;
 	if (getOldStore(&s) == TRUE)
 	{
+//		pcComsPrintf("store found \r\n");
 		while ((tag = storeGetSection(&s, &section)) > 0)
 		{
 			//   pcComsPrintf("tag found %d %d\r\n",tag,section.size);

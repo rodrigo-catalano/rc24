@@ -105,7 +105,11 @@ uint32 flashNumSectors()
 {
 #ifdef JN5148
 	return 8;
-#else
+#endif
+#ifdef JN5168
+	return 8;
+#endif
+#ifdef JN5139
 	return 4;
 #endif
 }

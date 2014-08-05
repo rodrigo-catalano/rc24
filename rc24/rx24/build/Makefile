@@ -90,7 +90,7 @@ APP_COMMON_SRC_DIR = $(APP_BASE)/Common/Source
 APPSRC  = rxmain.c
 APPSRC += hopping.c
 APPSRC += routedmessage.c
-APPSRC += store.c
+#APPSRC += store.c
 APPSRC += swEventQueue.c
 APPSRC += servopwm.c
 APPSRC += motorpwm.c
@@ -108,8 +108,11 @@ APPSRC += routedObject.c
 APPSRC += imu.c
 APPSRC += pilot.c
 APPSRC += blunt.c
+APPSRC += flashFile.c
+APPSRC += objectStore.c
+APPSRC += ffloat.c
 
-APPSRC += AppQueueApi.c
+APPSRC += AppQueueApiEx.c
 #APPSRC += Printf.c
 
 ##############################################################################
@@ -117,7 +120,7 @@ APPSRC += AppQueueApi.c
 # Define any additional application directories outside the application directory
 # e.g. for AppQueueApi
 
-ADDITIONAL_SRC_DIR += $(COMPONENTS_BASE_DIR)/AppQueueApi/Source
+#ADDITIONAL_SRC_DIR += $(COMPONENTS_BASE_DIR)/AppQueueApi/Source
 ADDITIONAL_SRC_DIR += $(COMPONENTS_BASE_DIR)/Utilities/Source
 
 ##############################################################################
@@ -130,13 +133,14 @@ INCFLAGS += -I$(APP_COMMON_SRC_DIR)
 # Application specific include files
 INCFLAGS += -I$(COMPONENTS_BASE_DIR)/JennicLogo/Include
 INCFLAGS += -I$(COMPONENTS_BASE_DIR)/Utilities/Include
-INCFLAGS += -I$(COMPONENTS_BASE_DIR)/AppQueueApi/Include 
+#INCFLAGS += -I$(COMPONENTS_BASE_DIR)/AppQueueApi/Include 
 
 ##############################################################################
 # Application libraries
 # Specify additional Component libraries
 
 #APPLIBS += 
+
 
 ##############################################################################
 # You should not need to edit below this line
@@ -188,14 +192,20 @@ all: $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).bin
 
 %.o: %.c 
 	$(info Compiling $< ...)
-	$(CC) -c -o $(subst Source,Build,$@) $(CFLAGS) $(INCFLAGS) $< -MD -MF $*.d -MP
+	$(CC) -c -o $(subst Source,Build,$@) $(CFLAGS) -O3 $(INCFLAGS) $< -MD -MF $*.d -MP
 	@echo
 
 $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).elf: $(APPOBJS) $(addsuffix _$(JENNIC_CHIP_FAMILY).a,$(addprefix $(COMPONENTS_BASE_DIR)/Library/lib,$(APPLIBS))) 
 	$(info Linking $@ ...)
-	$(CC) -Wl,--gc-sections -Wl,-u_AppColdStart -Wl,-u_AppWarmStart $(LDFLAGS) -T$(LINKCMD) -o $@ $(APPOBJS) -Wl,--start-group  $(addprefix -l,$(LDLIBS)) -Wl,--end-group -Wl,-Map,$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).map 
+	$(CC) -Wl,--gc-sections -Wl,-u_AppColdStart -Wl,-u_AppWarmStart $(LDFLAGS) -T$(LINKCMD) -o $@ $(APPOBJS) -Wl,--start-group $(addprefix -l,$(LDLIBS)) -Wl,--end-group -Wl,-Map,$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).map 
 	${SIZE} $@
 	@echo
+
+#$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).elf: $(APPOBJS) $(addsuffix _$(JENNIC_CHIP_FAMILY).a,$(addprefix $(COMPONENTS_BASE_DIR)/Library/lib,$(APPLIBS))) 
+#	$(info Linking $@ ...)
+#	$(CC) -Wl,--gc-sections -Wl,-u_AppColdStart -Wl,-u_AppWarmStart $(LDFLAGS) -T$(LINKCMD) -o $@ $(APPOBJS) -Wl,--start-group -lm $(addprefix -l,$(LDLIBS)) -Wl,--end-group -Wl,-Map,$(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).map 
+#	${SIZE} $@
+#	@echo
 
 $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).bin: $(TARGET)_$(JENNIC_CHIP)$(BIN_SUFFIX).elf 
 	$(info Generating binary ...)

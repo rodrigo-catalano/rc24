@@ -107,7 +107,7 @@ APPSRC += commonCommands.c
 APPSRC += exceptions.c
 #APPSRC += scriptIL.c
 
-APPSRC += AppQueueApi.c
+APPSRC += AppQueueApiEx.c
 
 ##############################################################################
 # Additional Application Source directories

@@ -21,10 +21,11 @@
 #include <string.h>
 #include <jendefs.h>
 #include <AppHardwareApi.h>
-#include <AppQueueApi.h>
+#include "AppQueueApiEx.h"
 #include <mac_sap.h>
 #include <mac_pib.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "config.h"
 #include "swEventQueue.h"
@@ -33,7 +34,7 @@
 #include "nmeagps.h"
 #include "myrxs.h"
 #include "routedmessage.h"
-#include "store.h"
+
 #include "pcComs.h"
 #include "hwutils.h"
 #include "codeupdate.h"
@@ -43,9 +44,20 @@
 #include "exceptions.h"
 #include "oneWireBus.h"
 
+#define OBJECTSTORE
+
+#ifdef OBJECTSTORE
+#include "flashFile.h"
+#include "objectStore.h"
+#else
+#include "store.h"
+#endif
 #include "rxmain.h"
+#include "ffloat.h"
 #include "imu.h"
 #include "pilot.h"
+
+#include "mpu6050.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -131,7 +143,10 @@ PRIVATE void vHandleMcpsDataDcfm(MAC_McpsDcfmInd_s *psMcpsInd);
 PRIVATE void vProcessReceivedDataPacket(uint8 *pu8Data, uint8 u8Len);
 PRIVATE void vTransmitDataPacket(uint8 *pu8Data, uint8 u8Len, bool broadcast);
 
+void mcpsCallback(int t,MAC_McpsDcfmInd_s *psMcpsInd);
+
 void frameStartEvent(void* context,void* buff);
+void mixEvent(void* context,void* buff);
 
 void rxSendRoutedMessage(uint8* msg, uint8 len, uint8 toCon);
 void txComsSendRoutedPacket(uint8* msg, uint8 len);
@@ -140,11 +155,13 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon);
 void loadDefaultSettings(void);
 void loadSettings(void);
 void storeSettings(void* context);
+#ifdef OBJECTSTORE
+#else
 void loadRadioSettings(store* s);
 void saveRadioSettings(store* s);
 void loadGeneralSettings(store* s);
 void saveGeneralSettings(store* s);
-
+#endif
 
 //PRIVATE void vTick_TimerISR(uint32 u32Device, uint32 u32ItemBitmap);
 
@@ -164,7 +181,6 @@ PRIVATE tsEndDeviceData sEndDeviceData;	// End device state store
 PRIVATE uint32 rxdpackets = 0;	// Global packet counter
 PRIVATE uint8 txLinkQuality = 0;	// Link quality from last message
 PRIVATE uint32 frameCounter = 0;	// Good for almost 3 years at 50/sec
-PRIVATE uint32 missedFrames = 0;	// count of continuous missed frames, reset by a good frame.
 
 //PRIVATE uint16 rxDemands[20];	// Demanded positions from tx
 //PRIVATE uint16 rxMixedDemands[20];  //positions post any mixing on rx
@@ -211,6 +227,9 @@ uint32 debugCount1=0;
 PUBLIC char* rxComPortEnumValues[3] =
 { "Disabled","UART 0", "UART 1" };
 
+PUBLIC char* rxServoUpdateRateTypeEnumValues[4] =
+	{ "20ms", "10ms", "5ms", "2.5ms" };
+
 //rx hardware settings
 rxHardwareOptions rxHardware;
 
@@ -219,38 +238,44 @@ rxHardwareOptions rxHardware;
 //list of parameters that can be read or set by connected devices
 //either by direct access to variable or through getters and setters
 //their command id is defined by position in the list
+//also identifies those to be saved to flash
 ccParameter exposedParameters[]=
 {
 //		{ "RX Demands", CC_UINT16_ARRAY, rxDemands,0, sizeof(rxDemands) / sizeof(rxDemands[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "RX Demands", CC_UINT16_ARRAY,NULL,offsetof(Rx,rxDemands),20 ,CC_NO_GETTER,CC_NO_SETTER},
-	{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,0,CC_NO_GETTER,storeSettings },
-		{ "Radio Debug",CC_BOOL,&radioDebug,0,0,CC_NO_GETTER,CC_NO_SETTER },
-		{ "High Power Module", CC_BOOL, &useHighPowerModule,0, 0 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Hardware Type", CC_ENUMERATION, &rxHardwareType,0, 5 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "RX Demands", CC_UINT16_ARRAY,NULL,offsetof(Rx,rxDemands),20 ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "Save Settings",CC_VOID_FUNCTION,CC_NO_VAR_ACCESS,0,0,CC_NO_GETTER,storeSettings,CC_NO_STORE },
+		{ "Radio Debug", CC_BOOL,&radioDebug,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_STORE },
+		{ "High Power Module", CC_BOOL, &useHighPowerModule,0, 0 ,CC_NO_GETTER,CC_NO_SETTER,CC_STORE},
+		{ "Hardware Type", CC_ENUMERATION, &rxHardwareType,0, 5 ,CC_NO_GETTER,CC_NO_SETTER,CC_STORE},
 		{ "Hardware Type Enum", CC_ENUMERATION_VALUES, rxHardwareTypeEnumValues,0,
-			rxHardwareTypeCount ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedBytesRxd",CC_UINT32,&radioRoutedBytesRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedPacketsRxd",CC_UINT32,&radioRoutedPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedBytesTxd",CC_UINT32,&radioRoutedBytesTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radioRoutedPacketsTxd",CC_UINT32,&radioRoutedPacketsTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedBytesRxd",CC_UINT32,&uart0RoutedBytesRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedPacketsRxd",CC_UINT32,&uart0RoutedPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedBytesTxd",CC_UINT32,&uart0RoutedBytesTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RoutedPacketsTxd",CC_UINT32,&uart0RoutedPacketsTxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "uart0RxCrcErrors",CC_UINT32,&pcComsCrcErrors,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "Max Intr Latency",CC_UINT32,&maxActualLatency,0,0,CC_NO_GETTER,CC_NO_SETTER},
+			rxHardwareTypeCount ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "radioRoutedBytesRxd",CC_UINT32,&radioRoutedBytesRxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "radioRoutedPacketsRxd",CC_UINT32,&radioRoutedPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "radioRoutedBytesTxd",CC_UINT32,&radioRoutedBytesTxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "radioRoutedPacketsTxd",CC_UINT32,&radioRoutedPacketsTxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "uart0RoutedBytesRxd",CC_UINT32,&uart0RoutedBytesRxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "uart0RoutedPacketsRxd",CC_UINT32,&uart0RoutedPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "uart0RoutedBytesTxd",CC_UINT32,&uart0RoutedBytesTxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "uart0RoutedPacketsTxd",CC_UINT32,&uart0RoutedPacketsTxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "uart0RxCrcErrors",CC_UINT32,&pcComsCrcErrors,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "Max Intr Latency",CC_UINT32,&maxActualLatency,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
 
-		{ "One Wire Comm", CC_ENUMERATION, &rxHardware.desiredOneWirePort,0,18 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "GPS Comm", CC_ENUMERATION, &rxHardware.desiredGpsPort,0, 18 ,CC_NO_GETTER,CC_NO_SETTER},
+		{ "One Wire Comm", CC_ENUMERATION, &rxHardware.desiredOneWirePort,0,18 ,CC_NO_GETTER,CC_NO_SETTER,CC_STORE},
+		{ "GPS Comm", CC_ENUMERATION, &rxHardware.desiredGpsPort,0, 18 ,CC_NO_GETTER,CC_NO_SETTER,CC_STORE},
 		{ "Com Port Enum", CC_ENUMERATION_VALUES, rxComPortEnumValues,0,
-					sizeof(rxComPortEnumValues)/sizeof(rxComPortEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "gpsPacketsRxd",CC_UINT32,&gpsData.nmeaPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "I2C Enabled", CC_BOOL, &rxHardware.i2cInUse, 0 ,0,CC_NO_GETTER,CC_NO_SETTER},
-		{ "RX Mixed Demands", CC_UINT16_ARRAY,NULL,offsetof(Rx,rxMixedDemands),20 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "radio Overflows", CC_INT32,NULL,offsetof(Rx,radioOverflows),0 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "debug count 1", CC_INT32,&debugCount1,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "frameCounter", CC_INT32,&frameCounter,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER},
-		{ "missedFrames", CC_INT32,&missedFrames,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER}
+					sizeof(rxComPortEnumValues)/sizeof(rxComPortEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "gpsPacketsRxd",CC_UINT32,&gpsData.nmeaPacketsRxd,0,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "I2C Enabled", CC_BOOL, &rxHardware.i2cInUse, 0 ,0,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "RX Mixed Demands", CC_UINT16_ARRAY,NULL,offsetof(Rx,rxMixedDemands),20 ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "radio Overflows", CC_INT32,NULL,offsetof(Rx,radioOverflows),0 ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "debug count 1", CC_INT32,&debugCount1,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "frameCounter", CC_INT32,&frameCounter,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "missedFrames", CC_INT32,NULL,offsetof(Rx,missedFrames),0 ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
+		{ "tx mac low", CC_UINT32,&txMACl,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER,CC_STORE},
+		{ "tx mac high", CC_UINT32,&txMACh,CC_NO_OFFSET,0 ,CC_NO_GETTER,CC_NO_SETTER,CC_STORE},
+		{ "Servo update", CC_ENUMERATION, NULL,offsetof(Rx,servoUpdateRate), 29 ,CC_NO_GETTER,CC_NO_SETTER,CC_STORE},
+		{ "Servo update Enum", CC_ENUMERATION_VALUES, rxServoUpdateRateTypeEnumValues,0,
+			sizeof(rxServoUpdateRateTypeEnumValues)/sizeof(rxServoUpdateRateTypeEnumValues[0]) ,CC_NO_GETTER,CC_NO_SETTER,CC_NO_STORE},
 
 
 };
@@ -301,6 +326,7 @@ void connectObjects()
 	RX.ro.parameters=parameterList;
 	RX.ro.messageHandler=RXHandleMessage;
 	RX.radioOverflows=0;
+	RX.servoUpdateRate=0;
 
 	sensorBus1.ro.name="1 wire";
 	sensorBus1.ro.connections=onewConnections;
@@ -339,7 +365,26 @@ void dbgPrintf(const char *fmt, ...)
 	msglen+=slen;
 	rxSendRoutedMessage((uint8*) buf, msglen, debugRoute->routeNodes[0]);
 }
+void dbgLog(int* msgbuf,int len)
+{
+	// Send as routed message
+	// TODO make route a setable parameter so connected devices
+	// can ask for debug messages
+	// TODO - Fix magic numbers
+	char buf[196];
+	uint8 msglen=0;
+	msglen+=rmWriteEncodedRoute((uint8*)buf,debugRoute);
+	//debug log message command
+	buf[msglen++] = 0xfd;
 
+	int slen;
+
+	memcpy(buf + msglen+1,msgbuf,len);
+
+	buf[msglen++] = len;
+	msglen+=len;
+	rxSendRoutedMessage((uint8*) buf, msglen, debugRoute->routeNodes[0]);
+}
 
 /****************************************************************************
  *
@@ -367,6 +412,9 @@ PUBLIC void AppColdStart(void)
 	// TODO - move to settings?
 	setHopMode(hoppingRxStartup);
 
+	connectObjects();
+	RX.ro.version=2;
+
 	// Initialise the system
 	vInitSystem();
 
@@ -381,7 +429,6 @@ PUBLIC void AppColdStart(void)
 	{
 		// Don't use uart pins for servo op
 		initPcComs(&pccoms, CONPC, 0, rxHandleRoutedMessage);
-		vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
 		rxHardware.uart0InUse=TRUE;
 	}
 
@@ -408,7 +455,8 @@ PUBLIC void AppColdStart(void)
 	// Retrieve the MAC address and log it to the PC
 	module_MAC_ExtAddr_s* macptr = (module_MAC_ExtAddr_s*)pvAppApiGetMacAddrLocation();
 
-	// Send init string to PC log rx mac andbound tx mac to pc
+
+	// Send init string to PC log rx mac and bound tx mac to pc
 	dbgPrintf("rx24 2.10 rx %x %x tx %x %x",macptr->u32H, macptr->u32L,txMACh ,txMACl );
 
 
@@ -424,17 +472,15 @@ PUBLIC void AppColdStart(void)
 		RX.rxDemands[i] = 4096;
 		RX.rxMixedDemands[i] = 4096;
 	}
-	//TODO load from settings
-	imu.enabled=FALSE;
 	rxHardware.i2cInUse=imu.enabled;
-
+	startIMU(&imu);
 
 
 	// Set up digital inputs and outputs
 	initInputs(&rxHardware);
 	initOutputs(&rxHardware);
 
-	connectObjects();
+
 
 	if(rxHardware.oneWireEnabled==TRUE)
 	{
@@ -457,12 +503,17 @@ PUBLIC void AppColdStart(void)
 	while (bAHI_APRegulatorEnabled() == 0)
 		;
 
+
 	// Start the servo pwm generator
 	setFrameCallback(frameStartEvent);
-	startServoPwm();
+	setMixCallback(mixEvent);
+
+
+
+	startServoPwm(RX.servoUpdateRate);
+
 
 	// Enter the never ending main handler
-
 	while (1)
 	{
 		// Process any events
@@ -505,13 +556,39 @@ void frameStartEvent(void* context,void* buff)
 	// Called every frame, currently 20ms
 	frameCounter++;
 
+
+	#ifdef JN5168
+/*
+		MAC_McpsReqRsp_s sMcpsReqRsp;
+		MAC_McpsSyncCfm_s sMcpsSyncCfm;
+		// Send request to remove a data frame from transaction queue
+		sMcpsReqRsp.u8Type = MAC_MCPS_REQ_PURGE;
+		sMcpsReqRsp.u8ParamLength = sizeof(MAC_McpsReqPurge_s);
+		sMcpsReqRsp.uParam.sReqPurge.u8Handle = 1;
+		vAppApiMcpsRequest(&sMcpsReqRsp, &sMcpsSyncCfm);
+*/
+		//reset MAC
+		MAC_MlmeReqRsp_s sMlmeReqRsp;
+		MAC_MlmeSyncCfm_s sMlmeSyncCfm;
+		sMlmeReqRsp.u8Type = MAC_MLME_REQ_RESET;
+		sMlmeReqRsp.u8ParamLength = sizeof(MAC_MlmeReqReset_s);
+		sMlmeReqRsp.uParam.sReqReset.u8SetDefaultPib = FALSE;
+		vAppApiMlmeRequest(&sMlmeReqRsp, &sMlmeSyncCfm);
+
+
+		uint32 newchannel = getHopChannel(getSeqClock());
+
+
+		eAppApiPlmeSet(PHY_PIB_ATTR_CURRENT_CHANNEL, newchannel);
+	#endif
+
 	if(frameReceived==FALSE)
 	{
-		missedFrames++;
+		RX.missedFrames++;
 	}
 	else
 	{
-		missedFrames=0;
+		RX.missedFrames=0;
 	}
 
 	//used instead of sequence number to prevent handling the same frame twice
@@ -580,11 +657,13 @@ void frameStartEvent(void* context,void* buff)
 			rxLEDFlashCount = 0;
 		}
 	}
-	pilotDoMix(&pilot,&RX,&imu);
-	updateOutputs(RX.rxMixedDemands);
 
 }
-
+void mixEvent(void* context,void* buff)
+{
+	pilotDoMix(&pilot,&RX,&imu);
+	updateOutputs(RX.rxMixedDemands);
+}
 /****************************************************************************/
 /***        Local Functions                                               ***/
 /****************************************************************************/
@@ -603,9 +682,11 @@ PRIVATE void vInitSystem(void)
 {
 	// Setup interface to MAC
 	(void) u32AHI_Init();
-	(void) u32AppQApiInit(NULL, NULL, NULL);
+	(void) u32AppQApiInit(NULL,mcpsCallback , NULL);
+
 
 	loadSettings();
+
 
 	if (useHighPowerModule == TRUE)
 	{
@@ -638,10 +719,17 @@ PRIVATE void vInitSystem(void)
 	// sometimes useful during development
 	// all messages are passed up from lower levels
 	// MAC_vPibSetPromiscuousMode(s_pvMac, TRUE, FALSE);
+
+
 	module_MAC_ExtAddr_s* macptr = (module_MAC_ExtAddr_s*)pvAppApiGetMacAddrLocation();
 
 	//moved to after u32AHI_Init() for jn5148
 	randomizeHopSequence(((uint32) macptr->u32H) ^ ((uint32) macptr->u32L));
+
+#if (defined JN5148 || defined JN5168)
+	/* Enable TOF ranging. */
+//	vAppApiTofInit(TRUE);
+#endif
 
 }
 
@@ -720,15 +808,8 @@ PRIVATE void vProcessEventQueues(void)
  ****************************************************************************/
 PRIVATE void vProcessIncomingHwEvent(AppQApiHwInd_s *psAHI_Ind)
 {
+//no messages expected
 
-	// TODO - fix this
-	//   if(psAHI_Ind->u32DeviceId==E_AHI_DEVICE_TICK_TIMER)
-
-
-	//   if(psAHI_Ind->u32DeviceId==E_AHI_DEVICE_TIMER0)
-	//   {
-
-	//   }
 }
 
 /****************************************************************************
@@ -801,6 +882,32 @@ PRIVATE void vProcessIncomingMcps(MAC_McpsDcfmInd_s *psMcpsInd)
 		break;
 	}
 	//  }
+}
+
+void mcpsCallback( int t,MAC_McpsDcfmInd_s *psMcpsInd)
+{
+	//extract sync time in interrupt context to minimise effect of long
+	//processes on tx rx sync
+//	debugCount1=psMcpsInd->u8Type;
+	MAC_RxFrameData_s *psFrame;
+//	debugCount1=t;
+	switch (psMcpsInd->u8Type)
+	{
+		case MAC_MCPS_IND_DATA:
+		// Get the received data structure
+		psFrame = &psMcpsInd->uParam.sIndData.sFrame;
+
+		// retrieve the tx time, calculate the rx time ??
+		// TODO - explain rx time calc
+		int txTime = (psFrame->au8Sdu[1] + (psFrame->au8Sdu[2] << 8)) * 160;
+		//allow for latencies along the way and calculate the time we think the tx has now.
+		//allow for variations in packet length @ 250kbps
+		//32us per byte is 512 clocks per byte
+		int rxTime = (txTime + 2150* 16 +(psFrame->u8SduLength-8)*512  ) % (31* 20000* 16 ) ;
+
+		calcSyncError(rxTime);
+		break;
+	}
 }
 
 /****************************************************************************
@@ -879,13 +986,20 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 
 	if (TX_ADDRESS_MODE == 3 && (psFrame->sSrcAddr.uAddr.sExt.u32H != txMACh
 			|| psFrame->sSrcAddr.uAddr.sExt.u32L != txMACl))
+	{
+
+
 		return;
+	}
+	//debugCount1++;
 
 	// First frame, we have an association
 	// TODO - Should this be merged with code above [1]
 	if (sEndDeviceData.eState != E_STATE_ASSOCIATED)
 	{
-		dbgPrintf("tx found \r\n");
+//		dbgPrintf("tx found \r\n");
+		dbgPrintf("tx found %x %x\r\n",txMACh ,txMACl );
+
 
 		// Update the association state
 		sEndDeviceData.eState = E_STATE_ASSOCIATED;
@@ -908,7 +1022,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		 * [0] - 8 bit seqno
 		 * [1] - 16 bit tx time
 		 */
-
+/* now done in interrupt context
 		// retrieve the tx time, calculate the rx time ??
 		// TODO - explain rx time calc
 		int txTime = (psFrame->au8Sdu[1] + (psFrame->au8Sdu[2] << 8)) * 160;
@@ -919,7 +1033,7 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 
 		// TODO - Explain this
 		calcSyncError(rxTime);
-
+*/
 		// Update global rx data packet counter
 		rxdpackets++;
 
@@ -932,12 +1046,19 @@ PRIVATE void vHandleMcpsDataInd(MAC_McpsDcfmInd_s *psMcpsInd)
 		// If there is more data, process it
 		if(lowPriorityDataLen>0)
 		{
-			debugCount1++;
+		//	debugCount1++;
 			handleLowPriorityData(&psFrame->au8Sdu[realTimeDataLen+1], lowPriorityDataLen);
 		}
 
 		// Send some data back
 		// should check there is time to do this and limit retries
+
+#ifdef JN5168
+		//don't send if near the end of the frame as jn5168 gets upset
+		//if channel changed during transmission
+	//	if(getSeqClock()%(20000*16)>14000*16)return;
+	//	return;
+#endif
 
 		// Declare the return packet data and default size
 		uint8 au8Packet[6];
@@ -1453,7 +1574,37 @@ void rxHandleRoutedMessage(uint8* msg, uint8 len, uint8 fromCon)
 		rxSendRoutedMessage(msg, len, toCon);
 	}
 }
+#ifdef OBJECTSTORE
+#define RXSTOREFILENAME 6666
 
+void storeSettings(void* context)
+{
+	bAHI_FlashInit(E_FL_CHIP_AUTO, NULL);
+
+	flashFile file;
+	dbgPrintf("saving ");
+
+	flashOpenWrite(&file,RXSTOREFILENAME);
+	storeObject(&RX.ro,&file);
+	storeObject(&pilot.ro,&file);
+	storeObject(&imu.ro,&file);
+	flashClose(&file);
+}
+void loadSettings()
+{
+	bAHI_FlashInit(E_FL_CHIP_AUTO, NULL);
+	flashFile file;
+//	dbgPrintf("find store ");
+
+	if(flashOpenRead(&file,RXSTOREFILENAME)==TRUE)
+	{
+//		dbgPrintf("file found %d ",file.version);
+		readObject(&RX.ro,&file);
+		readObject(&pilot.ro,&file);
+		readObject(&imu.ro,&file);
+	}
+}
+#else
 /****************************************************************************
  *
  * NAME: loadDefaultSettings
@@ -1634,7 +1785,7 @@ void storeSettings(void* context)
 
 	commitStore(&s);
 }
-
+#endif
 /****************************************************************************/
 /***        END OF FILE                                                   ***/
 /****************************************************************************/

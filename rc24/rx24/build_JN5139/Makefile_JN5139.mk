@@ -104,7 +104,7 @@ APP_COMMON_SRC_DIR = $(APP_BASE)/Common/Source
 APPSRC  = rxmain.c
 APPSRC += hopping.c
 APPSRC += routedmessage.c
-APPSRC += store.c
+#APPSRC += store.c
 APPSRC += swEventQueue.c
 APPSRC += servopwm.c
 APPSRC += motorpwm.c
@@ -122,8 +122,11 @@ APPSRC += routedObject.c
 APPSRC += imu.c
 APPSRC += pilot.c
 APPSRC += blunt.c
+APPSRC += flashFile.c
+APPSRC += objectStore.c
+APPSRC += ffloat.c
 
-APPSRC += AppQueueApi.c
+APPSRC += AppQueueApiEx.c
 
 ##############################################################################
 # Additional Application Source directories
@@ -194,7 +197,7 @@ BOARD_LIB     = BoardLib_$(JENNIC_CHIP_FAMILY)
 
 LIBFILE = $(APP_SRC_DIR)/AudioLib_JN5139R1.a
 
-LIBFILE += $(SDK_BASE_DIR)/Common/Library/libm.a
+# LIBFILE += $(SDK_BASE_DIR)/Common/Library/libm.a
 
 
 LIBFILE += $(BOARDAPI_LIB)/$(BOARD_LIB).a

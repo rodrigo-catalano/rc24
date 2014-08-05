@@ -121,7 +121,6 @@ APPSRC += codeUpdate.c
 APPSRC += gui_walnut.c
 APPSRC += commonCommands.c
 APPSRC += exceptions.c
-
 APPSRC += AppQueueApi.c
 ##############################################################################
 # Additional Application Source directories
@@ -191,7 +190,7 @@ BOARDAPI_LIB  = $(BOARDAPI_BASE)/Library
 BOARD_LIB     = BoardLib_$(JENNIC_CHIP_FAMILY)
 
 
-LIBFILE = $(SDK_BASE_DIR)/Common/Library/libm.a
+#LIBFILE = $(SDK_BASE_DIR)/Common/Library/libm.a
 
 
 LIBFILE += $(BOARDAPI_LIB)/$(BOARD_LIB).a

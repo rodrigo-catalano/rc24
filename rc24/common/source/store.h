@@ -38,6 +38,9 @@ Copyright 2008 - 2009 © Alan Hopper
 
 //rx store defines
 
+#ifdef JN5168
+#define PAGEWORDLEN 16
+#endif
 
 
 typedef struct
@@ -45,6 +48,12 @@ typedef struct
     int currentPos;
     int base;
     int size;
+    uint32 flashWriteAddr;
+#ifdef JN5168
+    uint32 version;
+    uint8 flashWriteBuff[PAGEWORDLEN];
+    uint8 flashWriteBuffPos;
+#endif
 }store;
 
 

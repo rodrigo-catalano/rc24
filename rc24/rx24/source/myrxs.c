@@ -41,6 +41,8 @@ PUBLIC char* rxHardwareTypeEnumValues[rxHardwareTypeCount] =
 
 PUBLIC uint8 rxHardwareType = 0;
 
+
+
 #ifdef JN5168
 #define E_AHI_DIO20_INT 20
 #endif
