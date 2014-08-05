@@ -90,7 +90,7 @@ APP_COMMON_SRC_DIR = $(APP_BASE)/Common/Source
 APPSRC  = rxmain.c
 APPSRC += hopping.c
 APPSRC += routedmessage.c
-APPSRC += store.c
+#APPSRC += store.c
 APPSRC += swEventQueue.c
 APPSRC += servopwm.c
 APPSRC += motorpwm.c
@@ -108,8 +108,12 @@ APPSRC += routedObject.c
 APPSRC += imu.c
 APPSRC += pilot.c
 APPSRC += blunt.c
+APPSRC += flashFile.c
+APPSRC += objectStore.c
+APPSRC += ffloat.c
 
-APPSRC += AppQueueApi.c
+APPSRC += AppQueueApiEx.c
+
 #APPSRC += Printf.c
 
 ##############################################################################

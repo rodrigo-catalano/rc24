@@ -42,6 +42,7 @@ typedef struct
 }routedConnection;
 
 
+
 struct _routedObject
 {
 	routedConnection* connections;
@@ -49,6 +50,7 @@ struct _routedObject
 	ccParameterList parameters;
 	COMMS_OBJECT_CALLBACK_FN messageHandler;
 	char* name;
+	uint32 version;
 };
 
 void routedObjectHandleMessage(routedObject* obj,uint8* msg, uint8 len, uint8 fromCon);

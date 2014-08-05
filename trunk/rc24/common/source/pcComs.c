@@ -84,7 +84,10 @@ PUBLIC void vFifoPutCf(unsigned char c)
 
 PUBLIC void vFifoPutC(unsigned char c)
 {
-//  while ((u8AHI_UartReadLineStatus(E_AHI_UART_0) & E_AHI_UART_LS_THRE ) == 0);
+#ifdef JN5168
+	vAHI_UartWriteData(E_AHI_UART_0,c);
+#else
+ // while ((u8AHI_UartReadLineStatus(E_AHI_UART_0) & E_AHI_UART_LS_THRE ) == 0);
 
   pcComsTxLock=1;
   pcComsTxBuffer[pcComsWriteIdx++]=c;
@@ -97,6 +100,7 @@ PUBLIC void vFifoPutC(unsigned char c)
   pcComsTxLock=0;
 
  // while(pcComsWriteIdx-pcComsReadIdx>250);
+#endif
 }
 
 void initPcComs(pcCom* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb)
@@ -108,7 +112,23 @@ void initPcComs(pcCom* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb)
 	pcComsPortToIdx[port]=com;
 
 	//todo allow use of either or both uarts
+#ifdef JN5168
+	vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
+	bAHI_UartEnable(E_AHI_UART_0,pcComsTxBuffer,256,uploadRxBuffer,256);
+	vAHI_UartSetBaudRate(E_AHI_UART_0,E_AHI_UART_RATE_38400);
+	vAHI_UartSetControl(E_AHI_UART_0, FALSE, FALSE, E_AHI_UART_WORD_LEN_8, TRUE, FALSE);
+	vAHI_UartReset(E_AHI_UART_0, TRUE, TRUE);
+//    vAHI_UartReset(E_AHI_UART_0, FALSE, FALSE);
+	vAHI_Uart0RegisterCallback(pcComs_HandleUart0Interrupt);
 
+	       vAHI_UartSetInterrupt(E_AHI_UART_0,
+	        FALSE,
+	        FALSE,
+	        FALSE,//tx fifo empty
+	        TRUE,//rx data
+	        E_AHI_UART_FIFO_LEVEL_1);
+
+#else
     /* Enable UART 0: 38400-8-N-1 */
     vAHI_UartEnable(E_AHI_UART_0);
 
@@ -126,7 +146,9 @@ void initPcComs(pcCom* com,uint8 id,uint8 port,COMMS_CALLBACK_FN cb)
         TRUE,//tx fifo empty
         TRUE,//rx data
         E_AHI_UART_FIFO_LEVEL_1);
+		vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
 
+#endif
 
 }
 

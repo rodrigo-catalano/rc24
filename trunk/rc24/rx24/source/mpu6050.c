@@ -138,6 +138,34 @@ PRIVATE bool_t bi2cBusWait(void)
 	return(TRUE);
 
 }
+PUBLIC bool_t bi2cBusWriteCmd(uint8 u8Address, uint8 u8Command)
+{
+
+	/* Send address with write bit set */
+	vAHI_SiWriteSlaveAddr(u8Address, E_AHI_SI_SLAVE_RW_SET);
+
+	vAHI_SiSetCmdReg(E_AHI_SI_START_BIT,
+					 E_AHI_SI_NO_STOP_BIT,
+					 E_AHI_SI_NO_SLAVE_READ,
+					 E_AHI_SI_SLAVE_WRITE,
+					 E_AHI_SI_SEND_ACK,
+					 E_AHI_SI_NO_IRQ_ACK);
+
+	if(!bi2cBusWait()) return(FALSE);
+
+
+	/* Send command byte */
+	vAHI_SiWriteData8(u8Command);
+	vAHI_SiSetCmdReg(E_AHI_SI_NO_START_BIT,
+					 E_AHI_SI_NO_STOP_BIT,
+					 E_AHI_SI_NO_SLAVE_READ,
+					 E_AHI_SI_SLAVE_WRITE,
+					 E_AHI_SI_SEND_ACK,
+					 E_AHI_SI_NO_IRQ_ACK);
+
+	if(!bi2cBusWait()) return(FALSE);
+	return TRUE;
+}
 
 PUBLIC bool_t bi2cBusRandomRead(uint8 u8Address, uint8 u8Command, uint8 u8Length, uint8* pu8Data)
 {
@@ -216,7 +244,58 @@ PUBLIC bool_t bi2cBusRandomRead(uint8 u8Address, uint8 u8Command, uint8 u8Length
 	return(TRUE);
 
 }
+bool_t bSMBusWriteByte(uint8 address,uint8 reg,uint8 b)
+{
+	return bSMBusWrite(address, reg, 1, &b);
+}
 
+
+bool MPU9150_setupCompass(mpu6050* mpu)
+{
+  //code taken from http://playground.arduino.cc/Main/MPU-9150
+	bool_t bOk= TRUE;
+	uint8 buff[3];
+
+
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,MPU6050_INT_PIN_CFG , 0x02); //set i2c bypass enable pin to true to access magnetometer
+
+	bOk &=bSMBusWriteByte(mpu->compassI2Caddress,0x0A, 0x0f); //read fuse bits
+
+	bOk &=bi2cBusRandomRead(mpu->compassI2Caddress, 0x10, 3, buff);
+
+
+	//((asa-128)*0.5)/128+1;
+	mpu->rawValues.x_mag_sens=(buff[0]-128)+256;
+	mpu->rawValues.y_mag_sens=(buff[1]-128)+256;
+	mpu->rawValues.z_mag_sens=(buff[2]-128)+256;
+
+	dbgPrintf("sens %i %i %i   ",mpu->rawValues.x_mag_sens,mpu->rawValues.y_mag_sens,mpu->rawValues.z_mag_sens);
+
+	bOk &=bSMBusWriteByte(mpu->compassI2Caddress,0x0A, 0x00); //PowerDownMode
+	cycleDelay(120*16);
+	bOk &=bSMBusWriteByte(mpu->compassI2Caddress, 0x0A, 0x01); //start sample capture
+
+/*
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x24, 0x40); //Wait for Data at Slave0
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x25, 0x8C); //Set i2c address at slave0 at 0x0C
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x26, 0x02); //Set where reading at slave 0 starts
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x27, 0x88); //set offset at start reading and enable
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x28, 0x0C); //set i2c address at slv1 at 0x0C
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x29, 0x0A); //Set where reading at slave 1 starts
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x2A, 0x81); //Enable at set length to 1
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x64, 0x01); //overvride register
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x67, 0x03); //set delay rate
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x01, 0x80);
+
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x34, 0x04); //set i2c slv4 delay
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x64, 0x00); //override register
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x6A, 0x00); //clear usr setting
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x64, 0x01); //override register
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x6A, 0x20); //enable master i2c mode
+	bOk &=bSMBusWriteByte(mpu->I2Caddress,0x34, 0x13); //disable slv4
+*/
+	return bOk;
+}
 
 
 bool initMpu6050(mpu6050* mpu)
@@ -228,21 +307,47 @@ bool initMpu6050(mpu6050* mpu)
 	mpu->rawValues.x_gyro=0;
 	mpu->rawValues.y_gyro=0;
 	mpu->rawValues.z_gyro=0;
+	mpu->rawValues.x_mag=0;
+	mpu->rawValues.y_mag=0;
+	mpu->rawValues.z_mag=0;
 	mpu->whoami=0;
 	bool_t bOk = TRUE;
-    vSMBusInit();
-  //  vAHI_SiConfigure(TRUE, FALSE, 127);
+  //  vSMBusInit();
+    vAHI_SiConfigure(TRUE, FALSE, 7);
 
     uint8 buff[1];
     buff[0]=0;
 
+
+    buff[0]=0x00;
+    bOk &=bSMBusWrite(mpu->I2Caddress, MPU6050_PWR_MGMT_1, 1, &buff[0]);
+    cycleDelay(800*16);
+/*
     cycleDelay(800*16);
 
     bOk &=bi2cBusRandomRead(mpu->I2Caddress, MPU6050_WHO_AM_I, 1,&(mpu->whoami));
 
     cycleDelay(800*16);
-
+    buff[0]=0x80;
     bOk &=bSMBusWrite(mpu->I2Caddress, MPU6050_PWR_MGMT_1, 1, &buff[0]);
+    cycleDelay(800*16);
+    buff[0]=0x03;
+    bOk &=bSMBusWrite(mpu->I2Caddress, MPU6050_PWR_MGMT_1, 1, &buff[0]);
+    cycleDelay(800*16);
+
+    buff[0]=0x00;
+
+    bOk &=bSMBusWrite(mpu->I2Caddress, MPU6050_CONFIG, 1, &buff[0]);
+*/
+    buff[0]=0x18;
+
+    bOk &=bSMBusWrite(mpu->I2Caddress, MPU6050_GYRO_CONFIG, 1, &buff[0]);
+
+    buff[0]=0x10;
+    bOk &=bSMBusWrite(mpu->I2Caddress, MPU6050_ACCEL_CONFIG, 1, &buff[0]);
+
+
+    bOk &=MPU9150_setupCompass(mpu);
     cycleDelay(800*16);
 
 
@@ -251,10 +356,147 @@ bool initMpu6050(mpu6050* mpu)
 }
 bool readMpu6050(mpu6050* mpu)
 {
-	 bool_t bOk = TRUE;
+	uint8 buff[8];
+
+	static int compass=2;
+	bool_t bOk = TRUE;
+
+	 if(compass>=10)
+	 {
+		 bOk &=bi2cBusRandomRead(mpu->compassI2Caddress, 0x02, 8, buff);
+	 }
 	 bOk &=bi2cBusRandomRead(mpu->I2Caddress, MPU6050_ACCEL_XOUT_H, 14, (uint8 *) &(mpu->rawValues));
-	//todo check byte order
+	// bOk &=bi2cBusRandomRead(mpu->I2Caddress, MPU6050_ACCEL_XOUT_H, 20, (uint8 *) &(mpu->rawValues));
+
+	 //read compass at slower rate
+	 if(compass>=10)
+	 {
+		 compass=0;
+		 bOk &=bSMBusWriteByte(mpu->compassI2Caddress, 0x0A, 0x01);
+
+		 //data ready, valid and not saturated
+		 if(buff[0]==1 && buff[7]==0)
+		 {
+			 int16 t=(buff[2]<<8)|buff[1];
+		//	 mpu->rawValues.x_mag=(((int)t)*mpu->rawValues.x_mag_sens+mpu->rawValues.x_mag*63)>>6;
+			 mpu->rawValues.x_mag=((int)t)*mpu->rawValues.x_mag_sens;
+
+			 t=(buff[4]<<8)|buff[3];
+			// mpu->rawValues.y_mag=(((int)t)*mpu->rawValues.y_mag_sens+mpu->rawValues.y_mag*63)>>6;
+			 mpu->rawValues.y_mag=((int)t)*mpu->rawValues.y_mag_sens;
+
+			 t=(buff[6]<<8)|buff[5];
+			 //mpu->rawValues.z_mag=(((int)t)*mpu->rawValues.z_mag_sens+mpu->rawValues.z_mag*63)>>6;
+			 mpu->rawValues.z_mag=((int)t)*mpu->rawValues.z_mag_sens;
+		 }
+	 }
+	 else compass++;
+	 //todo check byte order
 
 	 return bOk;
 }
+bool initMS5611(MS5611 *sensor)
+{
+	bool_t bOk = TRUE;
+	vAHI_SiConfigure(TRUE, FALSE, 7);
 
+	//reset
+	bOk &=bi2cBusWriteCmd(sensor->addr,0x1e);
+	cycleDelay(10000*16);
+
+	 bOk &=bi2cBusRandomRead(sensor->addr, 0xa2, 2, &sensor->sens);
+	 bOk &=bi2cBusRandomRead(sensor->addr, 0xa4, 2, &sensor->off);
+	 bOk &=bi2cBusRandomRead(sensor->addr, 0xa6, 2, &sensor->tcs);
+	 bOk &=bi2cBusRandomRead(sensor->addr, 0xa8, 2, &sensor->tco);
+	 bOk &=bi2cBusRandomRead(sensor->addr, 0xaa, 2, &sensor->tref);
+	 bOk &=bi2cBusRandomRead(sensor->addr, 0xac, 2, &sensor->tempsens);
+
+	 bOk &=bi2cBusWriteCmd(sensor->addr,0x58);
+
+	 dbgPrintf("%i %i %i %i %i %i",
+			 sensor->sens,sensor->off,sensor->tcs,sensor->tco,sensor->tref,sensor->tempsens);
+
+	 sensor->state=0;
+	 return bOk;
+}
+bool readMS5611(MS5611 *sensor)
+{
+	uint32 temp=0;
+	uint32 pressure=0;
+	bool_t bOk = TRUE;
+
+	switch(sensor->state)
+	{
+	case 0:
+		bOk &=bi2cBusRandomRead(sensor->addr, 0x00, 3, ((uint8*)&temp)+1);
+		bOk &=bi2cBusWriteCmd(sensor->addr,0x48);//start p read
+		if(bOk)
+		{
+	//		temp>>=8;
+			sensor->dt=temp-(sensor->tref<<8);
+			sensor->temp=2000+((((int64)sensor->dt)*((uint64)sensor->tempsens))>>23);
+		}
+		sensor->state++;
+		break;
+	case 1:
+		bOk &=bi2cBusRandomRead(sensor->addr, 0x00, 3, ((uint8*)&pressure)+1);
+		bOk &=bi2cBusWriteCmd(sensor->addr,0x58);// start t read
+		sensor->state=0;
+		if(bOk)
+		{
+		//	pressure>>=8;
+
+		//	int64_t off  = ((uint32_t)_C[off] <<16) + (((int64_t)dT * _C[tco]) >> 7);
+		//	int64_t sens = ((uint32_t)_C[sens] <<15) + (((int64_t)dT * _C[tcs]) >> 8);
+		//	return ((( (rawPress * sens ) >> 21) - off) >> 15) / 100.0;
+
+			int64 off=(((uint32)sensor->off)<<16)+(((uint64)sensor->tco)*((int64)sensor->dt)>>7);
+			int64 sens=(((uint32)sensor->sens)<<15)+(((uint64)sensor->tcs)*((int64)sensor->dt)>>8);
+			int64 p=((((int64)pressure)*sens>>21)-off)>>15;
+			sensor->pressure=p;
+		}
+		break;
+	}
+	return bOk;
+}
+bool readMS5611test(MS5611 *sensor)
+{
+	int temp=0;
+	int pressure=0;
+
+	bool_t bOk = TRUE;
+
+	bOk &=bi2cBusWriteCmd(sensor->addr,0x48);
+	cycleDelay(10000*16);
+	bOk &=bi2cBusRandomRead(sensor->addr, 0x00, 3, &pressure);
+
+	bOk &=bi2cBusWriteCmd(sensor->addr,0x58);
+	cycleDelay(10000*16);
+	bOk &=bi2cBusRandomRead(sensor->addr, 0x00, 3, &temp);
+
+
+	if(bOk)
+	{
+		temp>>=8;
+		pressure>>=8;
+
+		int dt=temp-(sensor->tref<<8);
+		sensor->temp=2000+((((int64)dt)*((int64)sensor->tempsens))>>23);
+
+		int64 off=(((int64)sensor->off)<<16)+(((int64)sensor->tco)*((int64)dt)>>7);
+
+		int64 sens=(((int64)sensor->sens)<<15)+(((int64)sensor->tcs)*((int64)dt)>>8);
+
+		int64 p=((((int64)pressure)*sens>>21)-off)>>15;
+
+		sensor->pressure=p;
+
+		dbgPrintf("\r\n%i %i",sensor->temp,sensor->pressure);
+
+		//h=44331.5 - 4946.62 P^0.190263
+	}
+	else dbgPrintf("alt read failed");
+
+	return bOk;
+
+}
